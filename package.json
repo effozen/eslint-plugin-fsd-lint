@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-fsd-lint",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ESLint plugin for enforcing Feature-Sliced Design (FSD) architecture",
   "main": "src/index.js",
   "type": "module",
@@ -8,7 +8,13 @@
     "lint": "eslint .",
     "test": "node tests/fsd-rules.test.js"
   },
-  "keywords": ["eslint", "plugin", "feature-sliced-design", "fsd", "lint"],
+  "keywords": [
+    "eslint",
+    "plugin",
+    "feature-sliced-design",
+    "fsd",
+    "lint"
+  ],
   "author": "effozen",
   "license": "MIT",
   "dependencies": {
