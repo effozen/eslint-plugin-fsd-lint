@@ -1,6 +1,4 @@
 node_modules/
-.eslintrc.js
-eslint.config.mjs
 .idea/
 .vscode/
 .DS_Store/
