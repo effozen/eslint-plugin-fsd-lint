@@ -32,21 +32,29 @@ export default {
           return acc;
         }, {});
 
+        // Imports that are NOT part of the FSD structure
+        const nonFSDImports = [];
+
         importNodes.forEach(importNode => {
           const importPath = importNode.source.value;
           const layer = layers.find(l => importPath.includes(`/${l}/`));
 
           if (layer) {
             groupedImports[layer].push(importNode);
+          } else {
+            nonFSDImports.push(importNode); // Preserve non-FSD imports
           }
         });
 
-        // Flatten to get ordered import statements
+        // Flatten to get ordered import statements (FSD layers only)
         const sortedImports = layers.flatMap(layer => groupedImports[layer]);
+
+        // Maintain non-FSD imports in their original positions
+        const finalImportOrder = [...nonFSDImports, ...sortedImports];
 
         // 🚀 Convert AST nodes to text before comparison
         const importText = importNodes.map(node => sourceCode.getText(node)).join("\n");
-        const sortedImportText = sortedImports.map(node => sourceCode.getText(node)).join("\n");
+        const sortedImportText = finalImportOrder.map(node => sourceCode.getText(node)).join("\n");
 
         if (importText !== sortedImportText) {
           context.report({
