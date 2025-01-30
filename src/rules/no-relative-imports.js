@@ -1,12 +1,13 @@
 export default {
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: '상대 경로 import를 금지하고, 프로젝트에서 설정한 alias 사용을 강제합니다.',
+      description: "Disallows relative imports and enforces the use of project-defined aliases.",
       recommended: true,
     },
     messages: {
-      noRelativePath: "🚨 '{{ importPath }}' 상대 경로 import를 사용할 수 없습니다. alias를 사용하세요.",
+      noRelativePath:
+        "🚨 Relative import '{{ importPath }}' is not allowed. Use an alias instead.",
     },
   },
 
@@ -15,11 +16,11 @@ export default {
       ImportDeclaration(node) {
         const importPath = node.source.value;
 
-        // 상대 경로인지 확인 (../ 또는 ./로 시작하는 경우)
-        if (importPath.startsWith('../') || importPath.startsWith('./')) {
+        // Detects relative imports (starting with ../ or ./)
+        if (importPath.startsWith("../") || importPath.startsWith("./")) {
           context.report({
             node,
-            messageId: 'noRelativePath',
+            messageId: "noRelativePath",
             data: {
               importPath,
             },

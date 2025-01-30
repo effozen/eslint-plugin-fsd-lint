@@ -2,12 +2,12 @@ export default {
   meta: {
     type: "suggestion",
     docs: {
-      description: "FSD import 구문을 레이어별로 정렬하여 가독성을 높입니다.",
+      description: "Enforces ordered imports by Feature-Sliced Design (FSD) layers.",
       recommended: true,
     },
     messages: {
       incorrectGrouping:
-        "🚨 '{{ currentImport }}' import가 올바른 그룹에 정렬되지 않았습니다. 같은 레이어별로 정렬하세요.",
+        "🚨 '{{ currentImport }}' import is not correctly grouped. Keep imports ordered by layer.",
     },
     fixable: "code",
   },
@@ -23,10 +23,10 @@ export default {
 
         const sourceCode = context.getSourceCode();
 
-        // ✅ FSD 레이어 목록 (위에서 아래로)
+        // ✅ FSD Layer order (top to bottom)
         const layers = ["app", "processes", "pages", "widgets", "features", "entities", "shared"];
 
-        // import 경로를 기반으로 그룹화
+        // Group imports by FSD layer
         const groupedImports = layers.reduce((acc, layer) => {
           acc[layer] = [];
           return acc;
@@ -41,10 +41,10 @@ export default {
           }
         });
 
-        // 올바른 순서대로 import가 정렬되었는지 확인
+        // Flatten to get ordered import statements
         const sortedImports = layers.flatMap(layer => groupedImports[layer]);
 
-        // 🚀 AST 노드를 문자열로 변환 후 비교
+        // 🚀 Convert AST nodes to text before comparison
         const importText = importNodes.map(node => sourceCode.getText(node)).join("\n");
         const sortedImportText = sortedImports.map(node => sourceCode.getText(node)).join("\n");
 

@@ -1,13 +1,13 @@
 export default {
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
-      description: 'entities에서 widgets를 import하는 것을 금지합니다.',
+      description: "Prevents business logic layers (entities) from importing UI components (widgets).",
       recommended: true,
     },
     messages: {
       noCrossUI:
-        "🚨 '{{ fromLayer }}'에서 '{{ toLayer }}'을(를) import할 수 없습니다. UI는 비즈니스 로직을 몰라야 합니다.",
+        "🚨 '{{ fromLayer }}' cannot import from '{{ toLayer }}'. UI components must not be imported in business logic layers.",
     },
   },
 
@@ -17,14 +17,14 @@ export default {
         const filePath = context.filename;
         const importPath = node.source.value;
 
-        // entities에서 widgets를 import하는 경우 감지
-        if (filePath.includes('/entities/') && importPath.includes('/widgets/')) {
+        // Detect imports from entities to widgets
+        if (filePath.includes("/entities/") && importPath.includes("/widgets/")) {
           context.report({
             node,
-            messageId: 'noCrossUI',
+            messageId: "noCrossUI",
             data: {
-              fromLayer: 'entities',
-              toLayer: 'widgets',
+              fromLayer: "entities",
+              toLayer: "widgets",
             },
           });
         }
