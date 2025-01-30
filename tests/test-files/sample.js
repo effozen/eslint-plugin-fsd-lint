@@ -5,3 +5,4 @@ import { getUser } from "../entities/user";
 import { formatCurrency } from "../shared/utils";
 import { Header } from "../widgets/Header";
 import { useStore } from "../app/store";
+import test from "test";
