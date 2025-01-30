@@ -11,7 +11,7 @@
 
 ## 📖 Introduction
 
-`eslint-plugin-fsd-lint` is an ESLint plugin that enforces best practices for Feature-Sliced Design (FSD) architecture.<br/>  
+`eslint-plugin-fsd-lint` is an ESLint plugin that enforces best practices for Feature-Sliced Design (FSD) architecture. <br/>  
 It is fully **compatible with ESLint 9+** and follows the modern **Flat Config format**, ensuring seamless integration into modern JavaScript and TypeScript projects.
 
 ### ✨ Why use this plugin?
@@ -21,7 +21,7 @@ It is fully **compatible with ESLint 9+** and follows the modern **Flat Config f
 - **Ensures consistent code quality**: Standardizes import patterns and best practices.
 
 ### 🔍 What is Feature-Sliced Design?
-Feature-Sliced Design (FSD) is a modern architecture pattern that provides a structured approach to organizing frontend applications.<br/>  
+Feature-Sliced Design (FSD) is a modern architecture pattern that provides a structured approach to organizing frontend applications. <br/>  
 This plugin enforces key FSD principles such as **proper layer separation, import restrictions, and dependency management**,  
 helping developers build scalable and maintainable codebases.
 
@@ -179,9 +179,9 @@ import { formatCurrency } from "../../shared/utils";
 <br/>
 
 ### 2️⃣ fsd/no-relative-imports
-Disallows relative imports and enforces alias usage.<br/>
-✅ Allowed: Using project-defined aliases<br/>
-❌ Not Allowed: Using ../ or ./<br/>
+Disallows relative imports and enforces alias usage. <br/>
+✅ Allowed: Using project-defined aliases <br/>
+❌ Not Allowed: Using ../ or ./ <br/>
 
 ```javascript
 // ❌ Incorrect (relative import)
@@ -195,9 +195,9 @@ import { Button } from "@shared/ui/Button";
 <br/>
 
 ### 3️⃣ fsd/no-public-api-sidestep
-Prevents direct imports from internal modules of features, widgets, or entities.<br/>
-✅ Allowed: Importing from index.ts (public API)<br/>
-❌ Not Allowed: Importing a feature’s internal file<br/>
+Prevents direct imports from internal modules of features, widgets, or entities. <br/>
+✅ Allowed: Importing from index.ts (public API) <br/>
+❌ Not Allowed: Importing a feature’s internal file <br/>
 
 ```javascript
 // ❌ Incorrect (direct internal import)
@@ -210,9 +210,9 @@ import { authSlice } from "../../features/auth";
 <br/>
 
 ### 4️⃣ fsd/no-cross-slice-dependency
-Prevents direct dependencies between feature slices.<br/>
-✅ Allowed: features should communicate via entities or shared<br/>
-❌ Not Allowed: Direct imports between different features<br/>
+Prevents direct dependencies between feature slices. <br/>
+✅ Allowed: features should communicate via entities or shared <br/>
+❌ Not Allowed: Direct imports between different features <br/>
 
 ```javascript
 // ❌ Incorrect (feature importing from another feature)
@@ -225,9 +225,9 @@ import { PaymentEntity } from "../../entities/payment";
 <br/>
 
 ### 5️⃣ fsd/no-ui-in-business-logic
-Prevents UI imports inside business logic layers (e.g., entities).<br/>
-✅ Allowed: UI should only be used inside widgets or pages<br/>
-❌ Not Allowed: entities importing UI components<br/>
+Prevents UI imports inside business logic layers (e.g., entities). <br/>
+✅ Allowed: UI should only be used inside widgets or pages <br/>
+❌ Not Allowed: entities importing UI components <br/>
 
 ```javascript
 // ❌ Incorrect (entity importing widget)
@@ -241,9 +241,9 @@ import { getUser } from "../../entities/user";
 <br/>
 
 ### 6️⃣ fsd/no-global-store-imports
-Forbids direct imports of global state (store).<br/>
-✅ Allowed: Using useStore or useSelector<br/>
-❌ Not Allowed: Direct imports of the store<br/>
+Forbids direct imports of global state (store). <br/>
+✅ Allowed: Using useStore or useSelector <br/>
+❌ Not Allowed: Direct imports of the store <br/>
 
 ```javascript
 // ❌ Incorrect (direct import of store)
@@ -258,9 +258,9 @@ import { useSelector } from "react-redux";
 <br/>
 
 ### 7️⃣ fsd/ordered-imports
-Enforces import grouping by layer.<br/>
-✅ Allowed: Grouping imports by layer<br/>
-❌ Not Allowed: Mixed import order<br/>
+Enforces import grouping by layer. <br/>
+✅ Allowed: Grouping imports by layer <br/>
+❌ Not Allowed: Mixed import order <br/>
 
 ```javascript
 // ❌ Incorrect (random import order)
@@ -291,7 +291,7 @@ import { Header } from "../widgets/Header";  // Widgets
 
 ## 🛠 Auto-fix Support
 
-Certain rules in `eslint-plugin-fsd-lint` support **automatic fixing** using ESLint's `--fix` option.<br/>  
+Certain rules in `eslint-plugin-fsd-lint` support **automatic fixing** using ESLint's `--fix` option. <br/>  
 This allows developers to quickly resolve violations **without manual code adjustments**.
 
 ### ✅ Rules Supporting Auto-fix
@@ -347,7 +347,7 @@ import { Header } from "../widgets/Header";  // Widgets
 
 ## 🤝 Contributing
 
-We welcome contributions to improve `eslint-plugin-fsd-lint`!<br/>  
+We welcome contributions to improve `eslint-plugin-fsd-lint`! <br/>  
 If you have an idea for a new rule or an improvement, feel free to submit a Pull Request.
 
 Check out our [contribution guide](CONTRIBUTING.md).
@@ -356,7 +356,7 @@ Check out our [contribution guide](CONTRIBUTING.md).
 
 ## 📝 License
 
-This project is licensed under the MIT License.<br/>
+This project is licensed under the MIT License. <br/>
 See the [LICENSE](LICENSE.md) file for details.
 
 <br/>
