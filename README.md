@@ -139,7 +139,8 @@ src/
 
 ```
 
-> 💡 Tip: The plugin enforces correct layer imports according to FSD principles. For example, a feature can depend on entities and shared, but cannot directly import another feature.
+> 💡 Tip: The plugin enforces correct layer imports according to FSD principles. For example, a feature can depend on entities and shared, but cannot directly import another feature.<br/>  
+> Relative imports are allowed **only within the same slice**, but must be avoided across different slices or layers.
 
 ---
 
@@ -151,7 +152,7 @@ Each rule helps maintain a **clear module structure, enforce import constraints,
 | Rule | Description |
 |------|------------|
 | **fsd/forbidden-imports** | Prevents imports from higher layers and cross-imports between slices. |
-| **fsd/no-relative-imports** | Enforces alias usage instead of relative imports (`../../shared/ui`). |
+| **fsd/no-relative-imports** | Disallows relative imports across different slices or layers. Allows relative imports within the same slice. |
 | **fsd/no-public-api-sidestep** | Prevents direct imports from internal modules, enforcing public API usage. |
 | **fsd/no-cross-slice-dependency** | Disallows direct dependencies between feature slices. |
 | **fsd/no-ui-in-business-logic** | Prevents UI imports inside business logic layers (e.g., `entities`). |
@@ -184,12 +185,14 @@ Disallows relative imports and enforces alias usage. <br/>
 ❌ Not Allowed: Using ../ or ./ <br/>
 
 ```javascript
-// ❌ Incorrect (relative import)
-import { Button } from "../shared/ui/Button";
+// ❌ Incorrect (relative import across different slices)
+import { fetchUser } from "../another-slice/model/api";
 
-// ✅ Correct (alias import)
+// ✅ Correct (relative import within the same slice)
+import { fetchData } from "../model/api";
+
+// ✅ Correct (alias import across slices or layers)
 import { Button } from "@shared/ui/Button";
-
 ```
 
 <br/>
