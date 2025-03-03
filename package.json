@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
-    "test": "node tests/fsd-rules.test.js"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "keywords": [
     "eslint",
@@ -18,7 +21,10 @@
   "author": "effozen",
   "license": "MIT",
   "devDependencies": {
-    "eslint": "^9.0.0"
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vitest/ui": "^3.0.7",
+    "eslint": "^9.21.0",
+    "vitest": "^3.0.7"
   },
   "peerDependencies": {
     "eslint": ">=9.0.0"

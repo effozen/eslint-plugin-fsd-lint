@@ -5,3 +5,4 @@ eslint.config.mjs
 .idea/
 .vscode/
 .DS_Store/
+vitest.config.js
