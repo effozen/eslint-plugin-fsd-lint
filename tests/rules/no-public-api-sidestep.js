@@ -1,8 +1,8 @@
 /**
  * @fileoverview Tests for no-public-api-sidestep rule
  */
-import { testRule } from '../utils/test-utils';
-import noPublicApiSidestep from '../../src/rules/no-public-api-sidestep';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
+import noPublicApiSidestep from '../../src/rules/no-public-api-sidestep.js';
 
 testRule('no-public-api-sidestep', noPublicApiSidestep, {
   valid: [
@@ -35,11 +35,38 @@ testRule('no-public-api-sidestep', noPublicApiSidestep, {
       code: 'import { LoginForm } from "@features/auth/index.tsx";'
     },
     {
-      description: 'Only index is allowed, not index.types etc. (Not OK)',
-      code: 'import { userTypes } from "@entities/user/index.types";',
-      errors: [{ messageId: "noDirectImport" }],
+      description: 'Test file with direct import (exception)',
+      ...withFilename('import { userReducer } from "@entities/user/model/slice";', "src/features/auth/ui/LoginForm.test.tsx")
     },
+    {
+      description: 'Custom public API files',
+      ...withOptions(
+        'import { userModel } from "@entities/user/public.ts";',
+        {
+          publicApiFiles: ['public.ts', 'api.ts']
+        }
+      )
+    },
+    {
+      description: 'Custom restricted layers',
+      ...withOptions(
+        'import { userReducer } from "@entities/user/model/slice";',
+        {
+          layers: ['features', 'widgets'] // entities not restricted
+        }
+      )
+    },
+    {
+      description: 'Ignored import patterns',
+      ...withOptions(
+        'import { userTypes } from "@entities/user/model/types";',
+        {
+          ignoreImportPatterns: ['/model/types']
+        }
+      )
+    }
   ],
+
   invalid: [
     {
       description: 'Direct import from entity model (Forbidden)',
@@ -72,15 +99,24 @@ testRule('no-public-api-sidestep', noPublicApiSidestep, {
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: 'Multiple direct imports (Forbidden)',
-      code: `
-        import { userReducer } from "@entities/user/model/slice";
-        import { LoginForm } from "@features/auth/ui/LoginForm";
-      `,
-      errors: [
-        { messageId: "noDirectImport" },
-        { messageId: "noDirectImport" }
-      ],
+      description: 'With @/features format (Forbidden)',
+      code: 'import { LoginForm } from "@/features/auth/ui/LoginForm";',
+      options: [{
+        alias: { value: "@", withSlash: true }
+      }],
+      errors: [{ messageId: "noDirectImport" }],
     },
+    {
+      description: 'With folder pattern (Forbidden)',
+      code: 'import { userReducer } from "@entities/user/model/slice";',
+      options: [{
+        folderPattern: {
+          enabled: true,
+          regex: "^(\\d+_)?(.*)",
+          extractionGroup: 2
+        }
+      }],
+      errors: [{ messageId: "noDirectImport" }],
+    }
   ],
 });
