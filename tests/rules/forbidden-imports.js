@@ -1,86 +1,125 @@
 /**
  * @fileoverview Tests for forbidden-imports rule
  */
-import { testRule, withFilename } from '../utils/test-utils';
-import forbiddenImports from '../../src/rules/forbidden-imports';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
+import forbiddenImports from '../../src/rules/forbidden-imports.js';
 
 testRule('forbidden-imports', forbiddenImports, {
   valid: [
     {
-      description: 'Lower layer importing from shared (OK)',
+      description: 'Lower layer importing from higher layer (OK)',
       ...withFilename('import { Button } from "@shared/ui";', "src/features/auth/ui/LoginForm.tsx")
     },
     {
-      description: 'Lower layer importing from entities (OK)',
-      ...withFilename('import { User } from "@entities/user";', "src/features/auth/model/login.ts")
-    },
-    {
-      description: 'Lower layer importing from features (OK)',
-      ...withFilename('import { LoginForm } from "@features/auth";', "src/widgets/Header/ui/Header.tsx")
-    },
-    {
-      description: 'Lower layer importing from widgets (OK)',
-      ...withFilename('import { Header } from "@widgets/Header";', "src/pages/profile/ui/ProfilePage.tsx")
-    },
-    {
-      description: 'Lower layer importing from pages (OK)',
-      ...withFilename('import { ProfilePage } from "@pages/profile";', "src/processes/router/ui/AppRouter.tsx")
-    },
-    {
-      description: 'Lower layer importing from processes (OK)',
-      ...withFilename('import { Router } from "@processes/router";', "src/app/App.tsx")
-    },
-    {
-      description: 'Same layer imports (OK)',
+      description: 'Same layer import (OK)',
       ...withFilename('import { LoginByUsername } from "@features/login-by-username";', "src/features/auth/ui/LoginForm.tsx")
     },
     {
-      description: 'Non-absolute path imports (OK - not regulated by this rule)',
+      description: 'Relative path import (outside this rule scope)',
       ...withFilename('import { api } from "../api/api";', "src/features/auth/ui/LoginForm.tsx")
     },
+    {
+      description: 'Windows path import (OK)',
+      ...withFilename('import { Button } from "@shared/ui";', "src\\features\\auth\\ui\\LoginForm.tsx")
+    },
+    {
+      description: 'Test file import (exception)',
+      ...withFilename('import { Header } from "@widgets/Header";', "src/features/auth/ui/LoginForm.test.tsx")
+    },
+    {
+      description: '@/shared format import (with slash)',
+      ...withOptions(
+        withFilename('import { Button } from "@/shared/ui";', "src/features/auth/ui/LoginForm.tsx"),
+        { alias: { value: "@", withSlash: true } }
+      )
+    },
+    {
+      description: 'With folder pattern (1_features -> 5_entities)',
+      ...withOptions(
+        withFilename('import { User } from "@entities/user";', "src/1_features/auth/ui/LoginForm.tsx"),
+        {
+          folderPattern: {
+            enabled: true,
+            regex: "^(\\d+_)?(.*)",
+            extractionGroup: 2
+          }
+        }
+      )
+    },
+    {
+      description: 'Custom layer configuration',
+      ...withOptions(
+        withFilename('import { User } from "@core/user";', "src/modules/auth/ui/LoginForm.tsx"),
+        {
+          layers: {
+            modules: { pattern: "modules", priority: 1, allowedToImport: ["core"] },
+            core: { pattern: "core", priority: 2, allowedToImport: [] }
+          }
+        }
+      )
+    },
+    {
+      description: 'Ignored pattern',
+      ...withOptions(
+        withFilename('import { AppRouter } from "@app/router";', "src/features/auth/ui/LoginForm.tsx"),
+        {
+          ignoreImportPatterns: ["^@app/router"]
+        }
+      )
+    }
   ],
   invalid: [
     {
-      description: 'Features importing from widgets (Forbidden)',
+      description: 'Higher layer importing from lower layer (Forbidden)',
       code: 'import { Header } from "@widgets/Header";',
       filename: "src/features/auth/ui/LoginForm.tsx",
       errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: 'Features importing from pages (Forbidden)',
-      code: 'import { ProfilePage } from "@pages/profile";',
-      filename: "src/features/auth/model/login.ts",
+      description: 'Entities importing from features (Forbidden)',
+      code: 'import { LoginForm } from "@features/auth";',
+      filename: "src/entities/user/model/user.ts",
       errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: 'Widgets importing from app (Forbidden)',
+      description: 'Windows path with forbidden import',
       code: 'import { AppRouter } from "@app/router";',
-      filename: "src/widgets/Sidebar/ui/Sidebar.tsx",
+      filename: "src\\entities\\user\\model\\User.ts",
       errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: 'Entities importing from processes (Forbidden)',
-      code: 'import { AuthProcess } from "@processes/auth";',
+      description: 'With folder pattern (5_entities -> 1_features)',
+      code: 'import { LoginForm } from "@features/auth";',
+      filename: "src/5_entities/user/model/User.ts",
+      options: [{
+        folderPattern: {
+          enabled: true,
+          regex: "^(\\d+_)?(.*)",
+          extractionGroup: 2
+        }
+      }],
+      errors: [{ messageId: "invalidImport" }],
+    },
+    {
+      description: '@/shared format with forbidden import',
+      code: 'import { LoginForm } from "@/features/auth";',
       filename: "src/entities/user/model/User.ts",
+      options: [{
+        alias: { value: "@", withSlash: true }
+      }],
       errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: 'Shared importing from entities (Forbidden)',
-      code: 'import { User } from "@entities/user";',
-      filename: "src/shared/api/api-provider.ts",
+      description: 'Custom layer with forbidden import',
+      code: 'import { Auth } from "@modules/auth";',
+      filename: "src/core/user/model/User.ts",
+      options: [{
+        layers: {
+          modules: { pattern: "modules", priority: 1, allowedToImport: ["core"] },
+          core: { pattern: "core", priority: 2, allowedToImport: [] }
+        }
+      }],
       errors: [{ messageId: "invalidImport" }],
-    },
-    {
-      description: 'Multiple forbidden imports',
-      code: `
-        import { User } from "@entities/user";
-        import { AppRouter } from "@app/router";
-      `,
-      filename: "src/shared/api/api-provider.ts",
-      errors: [
-        { messageId: "invalidImport" },
-        { messageId: "invalidImport" }
-      ],
-    },
+    }
   ],
 });
