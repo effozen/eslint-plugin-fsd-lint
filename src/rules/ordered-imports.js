@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Enforces ordered imports by Feature-Sliced Design (FSD) layers
+ */
+
+import { normalizePath, extractLayerFromImportPath } from '../utils/path-utils.js';
+import { mergeConfig } from '../utils/config-utils.js';
+
 export default {
   meta: {
     type: "suggestion",
@@ -7,12 +14,54 @@ export default {
     },
     messages: {
       incorrectGrouping:
-        "🚨 '{{ currentImport }}' import is not correctly grouped. Keep imports ordered by layer.",
+        "🚨 '{{ currentImport }}' import is not correctly grouped. Keep imports ordered by layer."
     },
     fixable: "code",
+    schema: [
+      {
+        type: "object",
+        properties: {
+          alias: {
+            oneOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  value: { type: "string" },
+                  withSlash: { type: "boolean" }
+                },
+                required: ["value"],
+                additionalProperties: false
+              }
+            ]
+          },
+          customOrder: {
+            type: "array",
+            items: { type: "string" },
+            description: "Custom layer order (default from top to bottom: app, processes, pages, widgets, features, entities, shared)"
+          }
+        },
+        additionalProperties: false
+      }
+    ]
   },
 
   create(context) {
+    // Merge user config with default config
+    const options = context.options[0] || {};
+    const config = mergeConfig(options);
+
+    // Order of layers (from top to bottom)
+    const layerOrder = options.customOrder || [
+      'app',
+      'processes',
+      'pages',
+      'widgets',
+      'features',
+      'entities',
+      'shared'
+    ];
+
     return {
       Program(node) {
         const importNodes = node.body.filter(statement => statement.type === "ImportDeclaration");
@@ -25,22 +74,14 @@ export default {
         const sourceText = sourceCode.getText();
         const sourceLines = sourceText.split("\n");
 
-        // ✅ FSD Layer order (top to bottom)
-        const layers = ["app", "processes", "pages", "widgets", "features", "entities", "shared"];
-
         // Group imports by FSD layer
-        const groupedImports = layers.reduce((acc, layer) => {
+        const groupedImports = layerOrder.reduce((acc, layer) => {
           acc[layer] = [];
           return acc;
         }, {});
 
         // Imports that are NOT part of the FSD structure
         const nonFSDImports = [];
-
-        // Retrieve all comments
-        const allComments = sourceCode.getAllComments ?
-          sourceCode.getAllComments() :
-          sourceCode.getComments(node).leading.concat(sourceCode.getComments(node).trailing);
 
         // Store the start position of the first import and the end position of the last import
         const firstImportStart = importNodes[0].range[0];
@@ -90,9 +131,9 @@ export default {
           const combinedText = precedingText + importText;
 
           // Classify imports based on FSD layers
-          const layer = layers.find(l => importPath.includes(`/${l}/`));
+          const layer = extractLayerFromImportPath(importPath, config);
 
-          if (layer) {
+          if (layer && layerOrder.includes(layer)) {
             groupedImports[layer].push({ node: importNode, text: combinedText });
           } else {
             nonFSDImports.push({ node: importNode, text: combinedText });
@@ -100,7 +141,7 @@ export default {
         }
 
         // Generate sorted imports by layer
-        const sortedImports = layers.flatMap(layer => groupedImports[layer]);
+        const sortedImports = layerOrder.flatMap(layer => groupedImports[layer]);
 
         // Place non-FSD imports at the top
         const finalImportOrder = [...nonFSDImports, ...sortedImports];
@@ -133,7 +174,7 @@ export default {
             },
           });
         }
-      },
+      }
     };
-  },
+  }
 };

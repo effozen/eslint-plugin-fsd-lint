@@ -1,8 +1,8 @@
 /**
  * @fileoverview Tests for ordered-imports rule
  */
-import { testRule } from '../utils/test-utils';
-import orderedImports from '../../src/rules/ordered-imports';
+import { testRule } from '../utils/test-utils.js';
+import orderedImports from '../../src/rules/ordered-imports.js';
 
 testRule('ordered-imports', orderedImports, {
   valid: [
@@ -86,8 +86,33 @@ import { config } from "@app/config";
 import { LoginForm } from "@features/auth";
 import { Button } from "@shared/ui";
       `
+    },
+    {
+      description: 'Correctly ordered imports with @/shared format (OK)',
+      code: `
+import { config } from "@/app/config";
+import { Header } from "@/widgets/Header";
+import { LoginForm } from "@/features/auth";
+import { Button } from "@/shared/ui";
+      `,
+      options: [{
+        alias: { value: "@", withSlash: true }
+      }]
+    },
+    {
+      description: 'Custom layer order (OK)',
+      code: `
+import { Button } from "@shared/ui";
+import { User } from "@entities/user";
+import { LoginForm } from "@features/auth";
+import { Header } from "@widgets/Header";
+      `,
+      options: [{
+        customOrder: ['shared', 'entities', 'features', 'widgets']
+      }]
     }
   ],
+
   invalid: [
     {
       description: 'Incorrectly ordered imports (should fix)',
@@ -100,7 +125,7 @@ import { ProfilePage } from "@pages/profile";
 import { initAuth } from "@processes/auth";
 import { config } from "@app/config";
 import { fetchData } from "../api/api";
-      `,
+     `,
       errors: [{ messageId: "incorrectGrouping" }],
       output: `
 import { fetchData } from "../api/api";
@@ -112,7 +137,7 @@ import { Header } from "@widgets/Header";
 import { LoginForm } from "@features/auth";
 import { User } from "@entities/user";
 import { Button } from "@shared/ui";
-      `,
+     `,
     },
     {
       description: 'Imports with comments that need reordering (should fix)',
@@ -125,7 +150,7 @@ import { User } from "@entities/user";
 import { LoginForm } from "@features/auth";
 // Header widget
 import { Header } from "@widgets/Header";
-      `,
+     `,
       errors: [{ messageId: "incorrectGrouping" }],
       output: `
 // Header widget
@@ -136,7 +161,7 @@ import { LoginForm } from "@features/auth";
 import { User } from "@entities/user";
 // UI components
 import { Button } from "@shared/ui";
-      `,
+     `,
     },
     {
       description: 'Mixed import types with incorrect ordering (should fix)',
@@ -150,7 +175,7 @@ import { LoginForm } from "@features/auth";
 import { fetchData } from "../api/api";
 
 import { config } from "@app/config";
-      `,
+     `,
       errors: [{ messageId: "incorrectGrouping" }],
       output: `
 // API imports
@@ -161,7 +186,7 @@ import { LoginForm } from "@features/auth";
 // This is an entity
 import { User } from "@entities/user";
 import { Button } from "@shared/ui";
-      `,
+     `,
     },
     {
       description: 'Imports with blank lines between them (should fix)',
@@ -175,7 +200,7 @@ import { LoginForm } from "@features/auth";
 import { Header } from "@widgets/Header";
 
 import { config } from "@app/config";
-      `,
+     `,
       errors: [{ messageId: "incorrectGrouping" }],
       output: `
 import { config } from "@app/config";
@@ -183,7 +208,7 @@ import { Header } from "@widgets/Header";
 import { LoginForm } from "@features/auth";
 import { User } from "@entities/user";
 import { Button } from "@shared/ui";
-      `,
+     `,
     },
     {
       description: 'Imports with complex comments and blank lines (should fix)',
@@ -202,7 +227,7 @@ import { LoginForm } from "@features/auth";
 
 // App configuration
 import { config } from "@app/config";
-      `,
+     `,
       errors: [{ messageId: "incorrectGrouping" }],
       output: `
 // App configuration
@@ -219,7 +244,24 @@ import { User } from "@entities/user";
 // These are reusable across the app
 import { Button } from "@shared/ui";
 import { Input } from "@shared/ui";
-      `,
+     `,
+    },
+    {
+      description: '@/shared format with incorrect ordering (should fix)',
+      code: `
+import { Button } from "@/shared/ui";
+import { User } from "@/entities/user";
+import { ProfilePage } from "@/pages/profile";
+     `,
+      options: [{
+        alias: { value: "@", withSlash: true }
+      }],
+      errors: [{ messageId: "incorrectGrouping" }],
+      output: `
+import { ProfilePage } from "@/pages/profile";
+import { User } from "@/entities/user";
+import { Button } from "@/shared/ui";
+     `,
     }
   ],
 });
