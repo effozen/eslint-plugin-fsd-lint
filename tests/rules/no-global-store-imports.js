@@ -1,8 +1,8 @@
 /**
  * @fileoverview Tests for no-global-store-imports rule
  */
-import { testRule } from '../utils/test-utils';
-import noGlobalStoreImports from '../../src/rules/no-global-store-imports';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
+import noGlobalStoreImports from '../../src/rules/no-global-store-imports.js';
 
 testRule('no-global-store-imports', noGlobalStoreImports, {
   valid: [
@@ -38,7 +38,30 @@ testRule('no-global-store-imports', noGlobalStoreImports, {
       description: 'Feature reducer import (OK)',
       code: 'import { authReducer } from "@features/auth";'
     },
+    {
+      description: 'Test file importing store (exception)',
+      ...withFilename('import { store } from "@app/store";', "src/features/auth/ui/LoginForm.test.tsx")
+    },
+    {
+      description: 'Allowed path by configuration (OK)',
+      ...withOptions(
+        'import { store } from "@app/store/testing";',
+        {
+          allowedPaths: ['/store/testing']
+        }
+      )
+    },
+    {
+      description: 'Custom forbidden paths (OK)',
+      ...withOptions(
+        'import { store } from "@app/store";',
+        {
+          forbiddenPaths: ['/global-store/']
+        }
+      )
+    }
   ],
+
   invalid: [
     {
       description: 'Direct app layer store import (Forbidden)',
@@ -86,5 +109,13 @@ testRule('no-global-store-imports', noGlobalStoreImports, {
       code: 'import { store as appStore } from "@app/store";',
       errors: [{ messageId: "noGlobalStore" }],
     },
+    {
+      description: 'Custom forbidden paths (Forbidden)',
+      code: 'import { globalStore } from "@app/global-store";',
+      options: [{
+        forbiddenPaths: ['/global-store/']
+      }],
+      errors: [{ messageId: "noGlobalStore" }],
+    }
   ],
 });
