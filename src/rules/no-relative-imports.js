@@ -1,4 +1,10 @@
-import path from "path";
+/**
+ * @fileoverview Disallows relative imports across different slices in Feature-Sliced Design
+ */
+
+import { extractLayerFromPath, extractSliceFromPath, isTestFile, normalizePath, isRelativePath } from '../utils/path-utils.js';
+import { mergeConfig } from '../utils/config-utils.js';
+import path from 'path';
 
 export default {
   meta: {
@@ -9,62 +15,130 @@ export default {
     },
     messages: {
       noRelativePath:
-        "🚨 Relative import '{{ importPath }}' is not allowed across different slices. Use an alias instead.",
+        "🚨 Relative import '{{ importPath }}' is not allowed across different slices. Use an alias instead."
     },
+    schema: [
+      {
+        type: "object",
+        properties: {
+          alias: {
+            oneOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  value: { type: "string" },
+                  withSlash: { type: "boolean" }
+                },
+                required: ["value"],
+                additionalProperties: false
+              }
+            ]
+          },
+          folderPattern: {
+            type: "object",
+            properties: {
+              enabled: { type: "boolean" },
+              regex: { type: "string" },
+              extractionGroup: { type: "number" }
+            },
+            additionalProperties: false
+          },
+          testFilesPatterns: {
+            type: "array",
+            items: { type: "string" }
+          },
+          ignoreImportPatterns: {
+            type: "array",
+            items: { type: "string" }
+          },
+          allowBetweenSlices: {
+            type: "boolean",
+            description: "If true, allow relative imports between different slices"
+          }
+        },
+        additionalProperties: false
+      }
+    ]
   },
 
   create(context) {
+    // Merge user config with default config
+    const options = context.options[0] || {};
+    const config = mergeConfig(options);
+
+    // Check if relative imports between slices are allowed (default: false)
+    const allowBetweenSlices = options.allowBetweenSlices ||
+      config.relativePath?.allowBetweenSlices ||
+      false;
+
+    // Project root directory
+    const projectRoot = process.cwd();
+
     return {
       ImportDeclaration(node) {
         const importPath = node.source.value;
 
-        // Check if the import path is a relative path
-        if (!importPath.startsWith("../") && !importPath.startsWith("./")) {
-          return; // Skip if it's not a relative import
-        }
-
-        const currentFilePath = context.getFilename();
-        const projectRoot = path.resolve(process.cwd(), "src"); // Project root directory (src)
-
-        // Resolve the absolute path of the imported file
-        const absoluteImportPath = path.resolve(path.dirname(currentFilePath), importPath);
-
-        if (!absoluteImportPath.startsWith(projectRoot)) {
-          return; // Skip checking files outside the src directory
-        }
-
-        // Compute relative paths for the current file and the import target
-        const relativePath = path.relative(projectRoot, currentFilePath);
-        const relativeImportTarget = path.relative(projectRoot, absoluteImportPath);
-
-        // Extract the first two folder names (Layer and Slice)
-        const getLayerAndSlice = (filePath) => {
-          const parts = filePath.split(path.sep);
-          return parts.length >= 2 ? { layer: parts[0], slice: parts[1] } : null;
-        };
-
-        const currentLocation = getLayerAndSlice(relativePath);
-        const importLocation = getLayerAndSlice(relativeImportTarget);
-
-        // Ignore cases where layer and slice information cannot be determined
-        if (!currentLocation || !importLocation) {
+        // Skip non-relative imports
+        if (!isRelativePath(importPath)) {
           return;
         }
 
-        // Allow imports within the same slice
-        if (currentLocation.layer === importLocation.layer && currentLocation.slice === importLocation.slice) {
+        const filePath = normalizePath(context.getFilename());
+
+        // Skip test files
+        if (isTestFile(filePath, config.testFilesPatterns)) {
           return;
         }
 
-        // Report an error if the relative import is crossing different slices
-        context.report({
-          node,
-          messageId: "noRelativePath",
-          data: {
-            importPath,
-          },
+        // Check for ignored patterns
+        const isIgnored = config.ignoreImportPatterns.some(pattern => {
+          const regex = new RegExp(pattern);
+          return regex.test(importPath);
         });
-      },
+
+        if (isIgnored) {
+          return;
+        }
+
+        // Extract current file's layer and slice
+        const fromLayer = extractLayerFromPath(filePath, config);
+        const fromSlice = extractSliceFromPath(filePath, config);
+
+        // Skip if not in a valid layer/slice
+        if (!fromLayer || !fromSlice) {
+          return;
+        }
+
+        // Allow between-slice imports if configured
+        if (allowBetweenSlices) {
+          return;
+        }
+
+        // For relative imports, we need to resolve the actual target path
+        const currentDir = path.dirname(filePath);
+        const resolvedImportPath = normalizePath(path.resolve(currentDir, importPath));
+
+        // Extract target file's layer and slice
+        const toLayer = extractLayerFromPath(resolvedImportPath, config);
+        const toSlice = extractSliceFromPath(resolvedImportPath, config);
+
+        // Skip if target is not in a valid layer/slice
+        if (!toLayer || !toSlice) {
+          return;
+        }
+
+        // Check if import crosses slice boundaries
+        if (fromLayer === toLayer && fromSlice !== toSlice) {
+          context.report({
+            node,
+            messageId: "noRelativePath",
+            data: {
+              importPath
+            }
+          });
+        }
+      }
     };
-  },
+  }
 };

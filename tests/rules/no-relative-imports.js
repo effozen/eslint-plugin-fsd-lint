@@ -1,8 +1,8 @@
 /**
  * @fileoverview Tests for no-relative-imports rule
  */
-import { testRule, withFilename } from '../utils/test-utils';
-import noRelativeImports from '../../src/rules/no-relative-imports';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
+import noRelativeImports from '../../src/rules/no-relative-imports.js';
 
 testRule('no-relative-imports', noRelativeImports, {
   valid: [
@@ -38,7 +38,23 @@ testRule('no-relative-imports', noRelativeImports, {
       description: 'Type import (OK, same rules apply)',
       ...withFilename('import type { ButtonProps } from "./Button.types";', "src/shared/ui/Button/Button.tsx")
     },
+    {
+      description: 'Test file with relative import to another slice (exception)',
+      ...withFilename('import { articleMock } from "../../article/model/mock";', "src/entities/user/model/user.test.ts")
+    },
+    {
+      description: 'Windows path with relative import within same slice (OK)',
+      ...withFilename('import { buttonStyles } from "../styles";', "src\\shared\\ui\\Button\\Button.tsx")
+    },
+    {
+      description: 'Relative import between slices with allowBetweenSlices option (OK)',
+      ...withOptions(
+        withFilename('import { User } from "../../entities/user/model/user";', "src/features/auth/ui/LoginForm.tsx"),
+        { allowBetweenSlices: true }
+      )
+    }
   ],
+
   invalid: [
     {
       description: 'Relative path import to different slice (Forbidden)',
@@ -71,16 +87,23 @@ testRule('no-relative-imports', noRelativeImports, {
       errors: [{ messageId: "noRelativePath" }],
     },
     {
-      description: 'Multiple forbidden relative imports (Forbidden)',
-      code: `
-        import { User } from "../../entities/user/model/user";
-        import { Button } from "../../shared/ui/Button";
-      `,
-      filename: "src/features/auth/ui/LoginForm.tsx",
-      errors: [
-        { messageId: "noRelativePath" },
-        { messageId: "noRelativePath" }
-      ],
+      description: 'Windows path with forbidden relative import',
+      code: 'import { userModel } from "..\\..\\entities\\user\\model\\user";',
+      filename: "src\\features\\auth\\ui\\LoginForm.tsx",
+      errors: [{ messageId: "noRelativePath" }],
     },
+    {
+      description: 'With folder pattern (Forbidden)',
+      code: 'import { User } from "../../5_entities/user/model/user";',
+      filename: "src/1_features/auth/ui/LoginForm.tsx",
+      options: [{
+        folderPattern: {
+          enabled: true,
+          regex: "^(\\d+_)?(.*)",
+          extractionGroup: 2
+        }
+      }],
+      errors: [{ messageId: "noRelativePath" }],
+    }
   ],
 });

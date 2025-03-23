@@ -1,8 +1,8 @@
 /**
  * @fileoverview Tests for no-ui-in-business-logic rule
  */
-import { testRule, withFilename } from '../utils/test-utils';
-import noUiInBusinessLogic from '../../src/rules/no-ui-in-business-logic';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
+import noUiInBusinessLogic from '../../src/rules/no-ui-in-business-logic.js';
 
 testRule('no-ui-in-business-logic', noUiInBusinessLogic, {
   valid: [
@@ -31,14 +31,33 @@ testRule('no-ui-in-business-logic', noUiInBusinessLogic, {
       ...withFilename('import { Header } from "@widgets/Header";', "src/pages/profile/ui/ProfilePage.tsx")
     },
     {
-      description: 'Entity UI component importing from widget (OK)',
+      description: 'Entity UI component importing from widget (OK - UI can import UI)',
       ...withFilename('import { Header } from "@widgets/Header";', "src/entities/user/ui/UserProfile.tsx")
     },
     {
       description: 'Type import unrelated to business logic (OK)',
       ...withFilename('import type { HeaderProps } from "@widgets/Header";', "src/entities/user/model/user.ts")
     },
+    {
+      description: 'Test file importing from widget to entity (exception)',
+      ...withFilename('import { Header } from "@widgets/Header";', "src/entities/user/model/user.test.ts")
+    },
+    {
+      description: 'Custom business logic layer definition',
+      ...withOptions(
+        withFilename('import { Header } from "@widgets/Header";', "src/domain/user/model/user.ts"),
+        {
+          businessLogicLayers: ['domain'],
+          uiLayers: ['widgets', 'pages']
+        }
+      )
+    },
+    {
+      description: 'Windows path with valid import',
+      ...withFilename('import { Article } from "@entities/article";', "src\\entities\\user\\model\\user.ts")
+    }
   ],
+
   invalid: [
     {
       description: 'Entity model importing from widget (Forbidden)',
@@ -65,22 +84,33 @@ testRule('no-ui-in-business-logic', noUiInBusinessLogic, {
       errors: [{ messageId: "noCrossUI" }],
     },
     {
-      description: 'Entity slice importing from widget (Forbidden)',
-      code: 'import { ThemeSwitcher } from "@widgets/ThemeSwitcher";',
-      filename: "src/entities/article/model/slice.ts",
+      description: 'Windows path with forbidden import',
+      code: 'import { Header } from "@widgets/Header";',
+      filename: "src\\entities\\user\\model\\user.ts",
       errors: [{ messageId: "noCrossUI" }],
     },
     {
-      description: 'Multiple forbidden widget imports (Forbidden)',
-      code: `
-        import { Header } from "@widgets/Header";
-        import { Sidebar } from "@widgets/Sidebar";
-      `,
-      filename: "src/entities/user/model/user.ts",
-      errors: [
-        { messageId: "noCrossUI" },
-        { messageId: "noCrossUI" }
-      ],
+      description: 'With custom business and UI layers',
+      code: 'import { Header } from "@ui/Header";',
+      filename: "src/logic/user/model/user.ts",
+      options: [{
+        businessLogicLayers: ['logic'],
+        uiLayers: ['ui']
+      }],
+      errors: [{ messageId: "noCrossUI" }],
     },
+    {
+      description: 'With folder pattern',
+      code: 'import { Header } from "@widgets/Header";',
+      filename: "src/5_entities/user/model/user.ts",
+      options: [{
+        folderPattern: {
+          enabled: true,
+          regex: "^(\\d+_)?(.*)",
+          extractionGroup: 2
+        }
+      }],
+      errors: [{ messageId: "noCrossUI" }],
+    }
   ],
 });
