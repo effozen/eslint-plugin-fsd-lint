@@ -487,6 +487,65 @@ src/
 - 사용자 정의 구성
 - 실제 사용 예시
 
+### 경로 별칭 지원
+
+플러그인은 이제 다양한 경로 별칭 형식을 올바르게 처리합니다:
+
+```javascript
+// 두 형식 모두 지원됩니다
+import { UserCard } from '@entities/user';
+import { UserCard } from '@/entities/user';
+```
+
+### 동적 import 지원
+
+모든 규칙이 이제 동적 import를 지원합니다:
+
+```javascript
+// 유효한 동적 import
+const UserCard = await import('@entities/user');
+const { UserCard } = await import('@entities/user');
+
+// 유효하지 않은 동적 import (규칙에 의해 감지됨)
+const UserCard = await import('@entities/user/ui');
+```
+
+### 포괄적인 테스트 커버리지
+
+모든 규칙이 이제 철저하게 테스트되었습니다:
+
+- 기본 import 시나리오
+- 엣지 케이스와 복잡한 패턴
+- 경로 변형 (Windows, Unix, 혼합)
+- 사용자 정의 구성
+- 실제 사용 예제
+- 경로 별칭 형식
+- 동적 import 패턴
+
+## 규칙
+
+### no-public-api-sidestep
+
+내부 모듈에서의 직접 import를 방지하고 public API 사용을 강제합니다.
+
+```javascript
+// ✅ 유효함: public API 사용
+import { UserCard } from '@entities/user';
+import { UserCard } from '@/entities/user'; // 이것도 유효함
+import { UserCard } from '@entities/user/index';
+
+// ❌ 유효하지 않음: 내부 직접 import
+import { UserCard } from '@entities/user/ui/UserCard';
+import { UserCard } from '@entities/user/model/types';
+
+// ✅ 유효함: public API를 사용하는 동적 import
+const UserCard = await import('@entities/user');
+const { UserCard } = await import('@entities/user');
+
+// ❌ 유효하지 않음: public API를 우회하는 동적 import
+const UserCard = await import('@entities/user/ui/UserCard');
+```
+
 ---
 
 ## 🤝 컨트리뷰션(기여)

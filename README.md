@@ -488,6 +488,41 @@ The plugin now includes extensive test cases for all rules, covering:
 - Custom configurations
 - Real-world usage examples
 
+### Path Alias Support
+
+The plugin now properly handles various path alias formats:
+
+```javascript
+// Both formats are supported
+import { UserCard } from '@entities/user';
+import { UserCard } from '@/entities/user';
+```
+
+### Dynamic Import Support
+
+All rules now support dynamic imports:
+
+```javascript
+// Valid dynamic imports
+const UserCard = await import('@entities/user');
+const { UserCard } = await import('@entities/user');
+
+// Invalid dynamic imports (will be caught by rules)
+const UserCard = await import('@entities/user/ui');
+```
+
+### Comprehensive Test Coverage
+
+All rules are now thoroughly tested with:
+
+- Basic import scenarios
+- Edge cases and complex patterns
+- Path variations (Windows, Unix, mixed)
+- Custom configurations
+- Real-world usage examples
+- Path alias formats
+- Dynamic import patterns
+
 ---
 
 ## 🤝 Contributing
