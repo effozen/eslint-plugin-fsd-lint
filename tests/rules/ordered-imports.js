@@ -1,267 +1,427 @@
 /**
  * @fileoverview Tests for ordered-imports rule
  */
-import { testRule } from '../utils/test-utils.js';
+import { testRule, withFilename, withOptions } from '../utils/test-utils.js';
 import orderedImports from '../../src/rules/ordered-imports.js';
 
 testRule('ordered-imports', orderedImports, {
   valid: [
+    // Basic ordered imports
     {
-      description: 'Already correctly ordered imports (OK)',
+      description: 'Correctly ordered imports (OK)',
       code: `
-import { fetchData } from "../api/api";
-
-import { config } from "@app/config";
-import { initAuth } from "@processes/auth";
-import { ProfilePage } from "@pages/profile";
-import { Header } from "@widgets/Header";
-import { LoginForm } from "@features/auth";
-import { User } from "@entities/user";
-import { Button } from "@shared/ui";
-      `
-    },
-    {
-      description: 'Imports with correct layer grouping and spacing (OK)',
-      code: `
-// External imports
-import React from 'react';
-import { useState } from 'react';
-
-// Relative imports
-import { fetchData } from "../api/api";
-
-// App layer
-import { config } from "@app/config";
-
-// Processes layer
-import { initAuth } from "@processes/auth";
-
-// Pages layer
-import { ProfilePage } from "@pages/profile";
-
-// Widgets layer
-import { Header } from "@widgets/Header";
-
-// Features layer
-import { LoginForm } from "@features/auth";
-
-// Entities layer
-import { User } from "@entities/user";
-
-// Shared layer
-import { Button } from "@shared/ui";
-      `
-    },
-    {
-      description: 'Imports with comments preserved and correct order (OK)',
-      code: `
-// Relative path imports
-import { fetchData } from "../api/api";
-
-// App configuration
-import { config } from "@app/config";
-// Auth process
-import { initAuth } from "@processes/auth";
-// Pages
-import { ProfilePage } from "@pages/profile";
-// UI components
-import { Header } from "@widgets/Header";
-import { LoginForm } from "@features/auth";
-import { User } from "@entities/user";
-import { Button } from "@shared/ui";
-      `
-    },
-    {
-      description: 'Only non-FSD imports (OK)',
-      code: `
-import React from 'react';
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-      `
-    },
-    {
-      description: 'Partial layer imports in correct order (OK)',
-      code: `
-import { config } from "@app/config";
-import { LoginForm } from "@features/auth";
-import { Button } from "@shared/ui";
-      `
-    },
-    {
-      description: 'Correctly ordered imports with @/shared format (OK)',
-      code: `
-import { config } from "@/app/config";
-import { Header } from "@/widgets/Header";
-import { LoginForm } from "@/features/auth";
-import { Button } from "@/shared/ui";
+        import React from 'react';
+        import { useDispatch } from 'react-redux';
+        import { Button } from '@shared/ui/Button';
+        import { User } from '@entities/user';
+        import { LoginForm } from '@features/auth';
+        import { Header } from '@widgets/header';
+        import { HomePage } from '@pages/home';
+        import { formatDate } from './utils';
       `,
-      options: [{
-        alias: { value: "@", withSlash: true }
-      }]
     },
     {
-      description: 'Custom layer order (OK)',
+      description: 'Correctly ordered imports with type imports (OK)',
       code: `
-import { Button } from "@shared/ui";
-import { User } from "@entities/user";
-import { LoginForm } from "@features/auth";
-import { Header } from "@widgets/Header";
+        import React from 'react';
+        import type { FC } from 'react';
+        import { useDispatch } from 'react-redux';
+        import type { RootState } from 'react-redux';
+        import { Button } from '@shared/ui/Button';
+        import type { ButtonProps } from '@shared/ui/Button';
+        import { User } from '@entities/user';
+        import type { UserType } from '@entities/user';
+        import { LoginForm } from '@features/auth';
+        import type { LoginFormProps } from '@features/auth';
+        import { Header } from '@widgets/header';
+        import type { HeaderProps } from '@widgets/header';
+        import { HomePage } from '@pages/home';
+        import type { HomePageProps } from '@pages/home';
+        import { formatDate } from './utils';
+        import type { DateFormat } from './utils';
       `,
-      options: [{
-        customOrder: ['shared', 'entities', 'features', 'widgets']
-      }]
-    }
+    },
+
+    // Node modules and third-party imports
+    {
+      description: 'Correctly ordered node modules imports (OK)',
+      code: `
+        import React from 'react';
+        import { useDispatch } from 'react-redux';
+        import { something } from '@types/react';
+      `,
+    },
+    {
+      description: 'Correctly ordered third-party imports (OK)',
+      code: `
+        import React from 'react';
+        import { useDispatch } from 'react-redux';
+        import { something } from 'lodash';
+      `,
+    },
+
+    // Type imports
+    {
+      description: 'Correctly ordered type imports (OK)',
+      code: `
+        import type { FC } from 'react';
+        import type { RootState } from 'react-redux';
+        import type { ButtonProps } from '@shared/ui/Button';
+        import type { UserType } from '@entities/user';
+        import type { LoginFormProps } from '@features/auth';
+        import type { HeaderProps } from '@widgets/header';
+        import type { HomePageProps } from '@pages/home';
+        import type { DateFormat } from './utils';
+      `,
+    },
+
+    // Dynamic imports
+    {
+      description: 'Correctly ordered dynamic imports (OK)',
+      code: `
+        const React = await import('react');
+        const { useDispatch } = await import('react-redux');
+        const { Button } = await import('@shared/ui/Button');
+        const { User } = await import('@entities/user');
+        const { LoginForm } = await import('@features/auth');
+        const { Header } = await import('@widgets/header');
+        const { HomePage } = await import('@pages/home');
+        const { formatDate } = await import('./utils');
+      `,
+    },
+
+    // Test file exceptions
+    {
+      description: 'Test file with unordered imports (exception)',
+      ...withFilename(
+        `
+          import { Header } from '@widgets/header';
+          import React from 'react';
+          import { User } from '@entities/user';
+        `,
+        'src/features/auth/ui/LoginForm.test.tsx'
+      ),
+    },
+    {
+      description: 'Test file in testing directory (exception)',
+      ...withFilename(
+        `
+          import { Header } from '@widgets/header';
+          import React from 'react';
+          import { User } from '@entities/user';
+        `,
+        'src/features/auth/testing/service.spec.ts'
+      ),
+    },
+
+    // Custom configurations
+    {
+      description: 'Custom import order (OK)',
+      ...withOptions(
+        `
+          import { User } from '@entities/user';
+          import React from 'react';
+          import { Button } from '@shared/ui/Button';
+        `,
+        {
+          importOrder: ['entities', 'react', 'shared'],
+        }
+      ),
+    },
+    {
+      description: 'Custom import groups (OK)',
+      ...withOptions(
+        `
+          import React from 'react';
+          import { useDispatch } from 'react-redux';
+          import { Button } from '@shared/ui/Button';
+          import { User } from '@entities/user';
+          import { LoginForm } from '@features/auth';
+          import { Header } from '@widgets/header';
+          import { HomePage } from '@pages/home';
+          import { formatDate } from './utils';
+        `,
+        {
+          groups: ['react', 'react-redux', 'shared', 'entities', 'features', 'widgets', 'pages', 'relative'],
+        }
+      ),
+    },
+    {
+      description: 'Custom import separators (OK)',
+      ...withOptions(
+        `
+          import React from 'react';
+          import { useDispatch } from 'react-redux';
+          
+          import { Button } from '@shared/ui/Button';
+          
+          import { User } from '@entities/user';
+          
+          import { LoginForm } from '@features/auth';
+          
+          import { Header } from '@widgets/header';
+          
+          import { HomePage } from '@pages/home';
+          
+          import { formatDate } from './utils';
+        `,
+        {
+          separators: true,
+        }
+      ),
+    },
+
+    // Path variations
+    {
+      description: 'Windows path format (OK)',
+      code: `
+        import React from 'react';
+        import { Button } from '@shared\\ui\\Button';
+        import { User } from '@entities\\user';
+        import { LoginForm } from '@features\\auth';
+        import { Header } from '@widgets\\header';
+        import { HomePage } from '@pages\\home';
+        import { formatDate } from '.\\utils';
+      `,
+    },
+    {
+      description: 'Unix path format (OK)',
+      code: `
+        import React from 'react';
+        import { Button } from '@shared/ui/Button';
+        import { User } from '@entities/user';
+        import { LoginForm } from '@features/auth';
+        import { Header } from '@widgets/header';
+        import { HomePage } from '@pages/home';
+        import { formatDate } from './utils';
+      `,
+    },
+    {
+      description: 'Mixed path separators (OK)',
+      code: `
+        import React from 'react';
+        import { Button } from '@shared/ui\\Button';
+        import { User } from '@entities\\user';
+        import { LoginForm } from '@features/auth';
+        import { Header } from '@widgets\\header';
+        import { HomePage } from '@pages/home';
+        import { formatDate } from '.\\utils';
+      `,
+    },
+
+    // Real-world scenarios
+    {
+      description: 'Import from hooks directory (OK)',
+      code: `
+        import React from 'react';
+        import { useAuth } from '@features/auth/hooks';
+        import { useUser } from '@entities/user/hooks';
+        import { useSidebar } from '@widgets/header/hooks';
+      `,
+    },
+    {
+      description: 'Import from constants directory (OK)',
+      code: `
+        import React from 'react';
+        import { API_ENDPOINTS } from '@features/auth/constants';
+        import { USER_ROLES } from '@entities/user/constants';
+        import { HEADER_HEIGHT } from '@widgets/header/constants';
+      `,
+    },
+    {
+      description: 'Import from utils directory (OK)',
+      code: `
+        import React from 'react';
+        import { formatDate } from '@shared/utils/date';
+        import { formatUserName } from '@entities/user/utils';
+        import { formatSidebarTitle } from '@widgets/header/utils';
+      `,
+    },
   ],
 
   invalid: [
+    // Basic unordered imports
     {
-      description: 'Incorrectly ordered imports (should fix)',
+      description: 'Unordered imports (Forbidden)',
       code: `
-import { Button } from "@shared/ui";
-import { User } from "@entities/user";
-import { LoginForm } from "@features/auth";
-import { Header } from "@widgets/Header";
-import { ProfilePage } from "@pages/profile";
-import { initAuth } from "@processes/auth";
-import { config } from "@app/config";
-import { fetchData } from "../api/api";
-     `,
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-import { fetchData } from "../api/api";
-
-import { config } from "@app/config";
-import { initAuth } from "@processes/auth";
-import { ProfilePage } from "@pages/profile";
-import { Header } from "@widgets/Header";
-import { LoginForm } from "@features/auth";
-import { User } from "@entities/user";
-import { Button } from "@shared/ui";
-     `,
+        import { User } from '@entities/user';
+        import React from 'react';
+        import { Button } from '@shared/ui/Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
     },
     {
-      description: 'Imports with comments that need reordering (should fix)',
+      description: 'Unordered imports with type imports (Forbidden)',
       code: `
-// UI components
-import { Button } from "@shared/ui";
-// User related 
-import { User } from "@entities/user";
-// Auth feature
-import { LoginForm } from "@features/auth";
-// Header widget
-import { Header } from "@widgets/Header";
-     `,
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-// Header widget
-import { Header } from "@widgets/Header";
-// Auth feature
-import { LoginForm } from "@features/auth";
-// User related 
-import { User } from "@entities/user";
-// UI components
-import { Button } from "@shared/ui";
-     `,
+        import type { UserType } from '@entities/user';
+        import type { FC } from 'react';
+        import type { ButtonProps } from '@shared/ui/Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
+
+    // Node modules and third-party imports
+    {
+      description: 'Unordered node modules imports (Forbidden)',
+      code: `
+        import { something } from '@types/react';
+        import React from 'react';
+        import { useDispatch } from 'react-redux';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
     },
     {
-      description: 'Mixed import types with incorrect ordering (should fix)',
+      description: 'Unordered third-party imports (Forbidden)',
       code: `
-import { Button } from "@shared/ui";
-// This is an entity
-import { User } from "@entities/user";
-import { LoginForm } from "@features/auth";
+        import { something } from 'lodash';
+        import React from 'react';
+        import { useDispatch } from 'react-redux';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
 
-// API imports
-import { fetchData } from "../api/api";
+    // Type imports
+    {
+      description: 'Unordered type imports (Forbidden)',
+      code: `
+        import type { UserType } from '@entities/user';
+        import type { FC } from 'react';
+        import type { ButtonProps } from '@shared/ui/Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
 
-import { config } from "@app/config";
-     `,
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-// API imports
-import { fetchData } from "../api/api";
+    // Dynamic imports
+    {
+      description: 'Unordered dynamic imports (Forbidden)',
+      code: `
+        const { User } = await import('@entities/user');
+        const React = await import('react');
+        const { Button } = await import('@shared/ui/Button');
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
 
-import { config } from "@app/config";
-import { LoginForm } from "@features/auth";
-// This is an entity
-import { User } from "@entities/user";
-import { Button } from "@shared/ui";
-     `,
+    // Path variations
+    {
+      description: 'Windows path format (Forbidden)',
+      code: `
+        import { User } from '@entities\\user';
+        import React from 'react';
+        import { Button } from '@shared\\ui\\Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
     },
     {
-      description: 'Imports with blank lines between them (should fix)',
+      description: 'Unix path format (Forbidden)',
       code: `
-import { Button } from "@shared/ui";
-
-import { User } from "@entities/user";
-
-import { LoginForm } from "@features/auth";
-
-import { Header } from "@widgets/Header";
-
-import { config } from "@app/config";
-     `,
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-import { config } from "@app/config";
-import { Header } from "@widgets/Header";
-import { LoginForm } from "@features/auth";
-import { User } from "@entities/user";
-import { Button } from "@shared/ui";
-     `,
+        import { User } from '@entities/user';
+        import React from 'react';
+        import { Button } from '@shared/ui/Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
     },
     {
-      description: 'Imports with complex comments and blank lines (should fix)',
+      description: 'Mixed path separators (Forbidden)',
       code: `
-// Shared UI components
-// These are reusable across the app
-import { Button } from "@shared/ui";
-import { Input } from "@shared/ui";
+        import { User } from '@entities\\user';
+        import React from 'react';
+        import { Button } from '@shared/ui\\Button';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
 
-// Entity layer
-// User model and components
-import { User } from "@entities/user";
-
-// Feature modules
-import { LoginForm } from "@features/auth";
-
-// App configuration
-import { config } from "@app/config";
-     `,
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-// App configuration
-import { config } from "@app/config";
-
-// Feature modules
-import { LoginForm } from "@features/auth";
-
-// Entity layer
-// User model and components
-import { User } from "@entities/user";
-
-// Shared UI components
-// These are reusable across the app
-import { Button } from "@shared/ui";
-import { Input } from "@shared/ui";
-     `,
+    // Real-world scenarios
+    {
+      description: 'Unordered imports from hooks directory (Forbidden)',
+      code: `
+        import { useUser } from '@entities/user/hooks';
+        import React from 'react';
+        import { useAuth } from '@features/auth/hooks';
+        import { useSidebar } from '@widgets/header/hooks';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
     },
     {
-      description: '@/shared format with incorrect ordering (should fix)',
+      description: 'Unordered imports from constants directory (Forbidden)',
       code: `
-import { Button } from "@/shared/ui";
-import { User } from "@/entities/user";
-import { ProfilePage } from "@/pages/profile";
-     `,
-      options: [{
-        alias: { value: "@", withSlash: true }
-      }],
-      errors: [{ messageId: "incorrectGrouping" }],
-      output: `
-import { ProfilePage } from "@/pages/profile";
-import { User } from "@/entities/user";
-import { Button } from "@/shared/ui";
-     `,
-    }
+        import { USER_ROLES } from '@entities/user/constants';
+        import React from 'react';
+        import { API_ENDPOINTS } from '@features/auth/constants';
+        import { HEADER_HEIGHT } from '@widgets/header/constants';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
+    {
+      description: 'Unordered imports from utils directory (Forbidden)',
+      code: `
+        import { formatUserName } from '@entities/user/utils';
+        import React from 'react';
+        import { formatDate } from '@shared/utils/date';
+        import { formatSidebarTitle } from '@widgets/header/utils';
+      `,
+      errors: [{ messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }, { messageId: 'unorderedImports' }],
+    },
+
+    // Complex scenarios
+    {
+      description: 'Multiple unordered imports (Forbidden)',
+      code: `
+        import { User } from '@entities/user';
+        import React from 'react';
+        import { Button } from '@shared/ui/Button';
+        import { LoginForm } from '@features/auth';
+        import { Header } from '@widgets/header';
+        import { HomePage } from '@pages/home';
+        import { formatDate } from './utils';
+      `,
+      errors: [
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+      ],
+    },
+    {
+      description: 'Mixed ordered and unordered imports (Forbidden)',
+      code: `
+        import React from 'react';
+        import { User } from '@entities/user';
+        import { Button } from '@shared/ui/Button';
+        import { LoginForm } from '@features/auth';
+        import { Header } from '@widgets/header';
+        import { HomePage } from '@pages/home';
+        import { formatDate } from './utils';
+      `,
+      errors: [
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+      ],
+    },
+    {
+      description: 'Nested unordered imports (Forbidden)',
+      code: `
+        import { User } from '@entities/user';
+        import { AnotherUser } from '@entities/another-user';
+        import React from 'react';
+        import { Button } from '@shared/ui/Button';
+        import { AnotherButton } from '@shared/ui/AnotherButton';
+        import { LoginForm } from '@features/auth';
+        import { AnotherLoginForm } from '@features/another-auth';
+      `,
+      errors: [
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+        { messageId: 'unorderedImports' },
+      ],
+    },
   ],
 });

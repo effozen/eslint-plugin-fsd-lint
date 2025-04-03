@@ -38,7 +38,7 @@ export function normalizePath(filePath) {
  */
 export function getPathSegments(filePath) {
   const normalized = normalizePath(filePath);
-  return normalized.split('/').filter(segment => segment.length > 0);
+  return normalized.split('/').filter((segment) => segment.length > 0);
 }
 
 /**
@@ -81,35 +81,32 @@ export function extractLayerFromImportPath(importPath, config) {
   const aliasValue = aliasConfig.value;
   const withSlash = aliasConfig.withSlash;
 
-  // Construct alias pattern
-  const aliasPattern = withSlash
-    ? `${aliasValue}/`
-    : aliasValue;
+  // Normalize the import path
+  const normalizedPath = normalizePath(importPath);
 
-  // Check if path starts with alias
-  if (!importPath.startsWith(aliasPattern)) {
-    return null;  // Not using our alias
+  // Construct alias patterns for both formats
+  const aliasPatterns = [withSlash ? `${aliasValue}/` : aliasValue, withSlash ? `${aliasValue}/` : `${aliasValue}/`];
+
+  // Check if path starts with any alias pattern
+  const matchingPattern = aliasPatterns.find((pattern) => normalizedPath.startsWith(pattern));
+  if (!matchingPattern) {
+    return null; // Not using our alias
   }
 
   // Process path after removing alias
-  let pathWithoutAlias;
-  if (withSlash) {
-    pathWithoutAlias = importPath.substring(aliasPattern.length);
-  } else {
-    // @shared/ui -> shared/ui
-    pathWithoutAlias = importPath.substring(aliasValue.length);
-    // Remove leading slash if present
-    if (pathWithoutAlias.startsWith('/')) {
-      pathWithoutAlias = pathWithoutAlias.substring(1);
-    }
+  let pathWithoutAlias = normalizedPath.substring(matchingPattern.length);
+
+  // Remove leading slash if present
+  if (pathWithoutAlias.startsWith('/')) {
+    pathWithoutAlias = pathWithoutAlias.substring(1);
   }
 
   // First path segment is the layer
   const firstSegment = pathWithoutAlias.split('/')[0];
 
   // Check if it matches any layer
-  return Object.keys(config.layers).find(layer =>
-    layer === firstSegment || config.layers[layer].pattern === firstSegment
+  return Object.keys(config.layers).find(
+    (layer) => layer === firstSegment || config.layers[layer].pattern === firstSegment
   );
 }
 
@@ -134,16 +131,14 @@ export function extractLayerFromPath(filePath, config) {
       const extracted = match[config.folderPattern.extractionGroup];
 
       // Check if extracted name matches any layer
-      return Object.keys(config.layers).find(layer =>
-        config.layers[layer].pattern === extracted || layer === extracted
+      return Object.keys(config.layers).find(
+        (layer) => config.layers[layer].pattern === extracted || layer === extracted
       );
     }
   }
 
   // Default layer matching if no folder pattern or no match
-  return Object.keys(config.layers).find(layer =>
-    layer === firstDir || config.layers[layer].pattern === firstDir
-  );
+  return Object.keys(config.layers).find((layer) => layer === firstDir || config.layers[layer].pattern === firstDir);
 }
 
 /**
@@ -170,11 +165,9 @@ export function extractSliceFromPath(filePath, config) {
  * @return {boolean} - Whether it's a test file
  */
 export function isTestFile(filePath, patterns) {
-  return patterns.some(pattern => {
+  return patterns.some((pattern) => {
     // Support simple wildcard patterns
-    const regexPattern = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*');
+    const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*');
 
     const regex = new RegExp(regexPattern);
     return regex.test(filePath);

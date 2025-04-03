@@ -1,65 +1,40 @@
 /**
- * @fileoverview Disallows relative imports across different slices in Feature-Sliced Design
+ * @fileoverview Prevents relative imports between slices. All imports should use absolute paths with aliases.
  */
 
-import { extractLayerFromPath, extractSliceFromPath, isTestFile, normalizePath, isRelativePath } from '../utils/path-utils.js';
+import { isRelativePath, isTestFile, normalizePath } from '../utils/path-utils.js';
 import { mergeConfig } from '../utils/config-utils.js';
-import path from 'path';
 
 export default {
   meta: {
-    type: "problem",
+    type: 'problem',
     docs: {
-      description: "Disallows relative imports across different slices in Feature-Sliced Design.",
+      description: 'Prevents relative imports between slices. Use absolute paths with aliases instead.',
       recommended: true,
     },
     messages: {
-      noRelativePath:
-        "🚨 Relative import '{{ importPath }}' is not allowed across different slices. Use an alias instead."
+      noRelativeImport: '🚨 Relative imports are not allowed. Use absolute imports with aliases instead.',
     },
     schema: [
       {
-        type: "object",
+        type: 'object',
         properties: {
-          alias: {
-            oneOf: [
-              { type: "string" },
-              {
-                type: "object",
-                properties: {
-                  value: { type: "string" },
-                  withSlash: { type: "boolean" }
-                },
-                required: ["value"],
-                additionalProperties: false
-              }
-            ]
-          },
-          folderPattern: {
-            type: "object",
-            properties: {
-              enabled: { type: "boolean" },
-              regex: { type: "string" },
-              extractionGroup: { type: "number" }
-            },
-            additionalProperties: false
-          },
           testFilesPatterns: {
-            type: "array",
-            items: { type: "string" }
+            type: 'array',
+            items: { type: 'string' },
           },
           ignoreImportPatterns: {
-            type: "array",
-            items: { type: "string" }
+            type: 'array',
+            items: { type: 'string' },
           },
-          allowBetweenSlices: {
-            type: "boolean",
-            description: "If true, allow relative imports between different slices"
-          }
+          allowTypeImports: {
+            type: 'boolean',
+            description: 'Allow relative imports for type-only imports',
+          },
         },
-        additionalProperties: false
-      }
-    ]
+        additionalProperties: false,
+      },
+    ],
   },
 
   create(context) {
@@ -67,32 +42,25 @@ export default {
     const options = context.options[0] || {};
     const config = mergeConfig(options);
 
-    // Check if relative imports between slices are allowed (default: false)
-    const allowBetweenSlices = options.allowBetweenSlices ||
-      config.relativePath?.allowBetweenSlices ||
-      false;
-
-    // Project root directory
-    const projectRoot = process.cwd();
+    // Allow type imports if configured
+    const allowTypeImports = options.allowTypeImports || false;
 
     return {
       ImportDeclaration(node) {
         const importPath = node.source.value;
 
-        // Skip non-relative imports
+        // Skip if not a relative import
         if (!isRelativePath(importPath)) {
           return;
         }
 
-        const filePath = normalizePath(context.getFilename());
-
         // Skip test files
-        if (isTestFile(filePath, config.testFilesPatterns)) {
+        if (isTestFile(context.getFilename(), config.testFilesPatterns)) {
           return;
         }
 
         // Check for ignored patterns
-        const isIgnored = config.ignoreImportPatterns.some(pattern => {
+        const isIgnored = config.ignoreImportPatterns.some((pattern) => {
           const regex = new RegExp(pattern);
           return regex.test(importPath);
         });
@@ -101,44 +69,51 @@ export default {
           return;
         }
 
-        // Extract current file's layer and slice
-        const fromLayer = extractLayerFromPath(filePath, config);
-        const fromSlice = extractSliceFromPath(filePath, config);
-
-        // Skip if not in a valid layer/slice
-        if (!fromLayer || !fromSlice) {
+        // Skip type-only imports if configured
+        if (allowTypeImports && node.importKind === 'type') {
           return;
         }
 
-        // Allow between-slice imports if configured
-        if (allowBetweenSlices) {
-          return;
-        }
+        context.report({
+          node,
+          messageId: 'noRelativeImport',
+        });
+      },
+      CallExpression(node) {
+        // Handle dynamic imports
+        if (node.callee.type === 'Import') {
+          const importPath = node.arguments[0].value;
 
-        // For relative imports, we need to resolve the actual target path
-        const currentDir = path.dirname(filePath);
-        const resolvedImportPath = normalizePath(path.resolve(currentDir, importPath));
+          // Skip if not a relative import
+          if (!isRelativePath(importPath)) {
+            return;
+          }
 
-        // Extract target file's layer and slice
-        const toLayer = extractLayerFromPath(resolvedImportPath, config);
-        const toSlice = extractSliceFromPath(resolvedImportPath, config);
+          // Skip test files
+          if (isTestFile(context.getFilename(), config.testFilesPatterns)) {
+            return;
+          }
 
-        // Skip if target is not in a valid layer/slice
-        if (!toLayer || !toSlice) {
-          return;
-        }
+          // Check for ignored patterns
+          const isIgnored = config.ignoreImportPatterns.some((pattern) => {
+            const regex = new RegExp(pattern);
+            return regex.test(importPath);
+          });
 
-        // Check if import crosses slice boundaries
-        if (fromLayer === toLayer && fromSlice !== toSlice) {
+          if (isIgnored) {
+            return;
+          }
+
+          // For dynamic imports, we can't check if it's a type import
+          // as that information is not available at parse time
+          // So we'll always report relative imports in dynamic imports
+
           context.report({
             node,
-            messageId: "noRelativePath",
-            data: {
-              importPath
-            }
+            messageId: 'noRelativeImport',
           });
         }
-      }
+      },
     };
-  }
+  },
 };

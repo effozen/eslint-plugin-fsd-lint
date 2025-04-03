@@ -23,6 +23,7 @@
 - **크로스 플랫폼 호환성**: Windows와 Unix 기반 시스템 모두에서 원활하게 작동
 - **유연한 폴더 이름 지정**: 사용자 정의 폴더 이름 패턴(`1_app`, `2_pages` 등) 지원
 - **다양한 별칭 형식**: `@shared`와 `@/shared` 모두 지원
+- **포괄적인 테스트 커버리지**: 실제 시나리오와 엣지 케이스로 철저히 테스트됨
 
 ### 🔍 Feature-Sliced Design이란?
 
@@ -75,7 +76,7 @@ import fsdPlugin from 'eslint-plugin-fsd-lint';
 export default [
   // 권장 프리셋 사용
   fsdPlugin.configs.recommended,
-  
+
   // 또는 개별적으로 규칙 구성
   {
     plugins: {
@@ -104,10 +105,10 @@ import fsdPlugin from 'eslint-plugin-fsd-lint';
 export default [
   // 표준 권장 구성
   fsdPlugin.configs.recommended,
-  
+
   // 엄격한 구성 (모든 규칙이 error)
   // fsdPlugin.configs.strict,
-  
+
   // 기본 구성 (덜 엄격함)
   // fsdPlugin.configs.base,
 ];
@@ -127,20 +128,23 @@ export default [
     },
     rules: {
       // 별칭 형식 및 폴더 패턴 구성
-      'fsd/forbidden-imports': ['error', {
-        // @shared 또는 @/shared 형식 모두 지원
-        alias: {
-          value: '@',
-          withSlash: false  // @/shared 형식을 위해 true 사용
+      'fsd/forbidden-imports': [
+        'error',
+        {
+          // @shared 또는 @/shared 형식 모두 지원
+          alias: {
+            value: '@',
+            withSlash: false, // @/shared 형식을 위해 true 사용
+          },
+          // 번호가 매겨진 폴더 접두사 지원
+          folderPattern: {
+            enabled: true,
+            regex: '^(\\d+_)?(.*)',
+            extractionGroup: 2,
+          },
         },
-        // 번호가 매겨진 폴더 접두사 지원
-        folderPattern: {
-          enabled: true,
-          regex: '^(\\d+_)?(.*)',
-          extractionGroup: 2
-        }
-      }],
-      
+      ],
+
       // 기타 규칙...
     },
   },
@@ -196,7 +200,7 @@ src/
 | 규칙(Rule)                        | 설명                                                                                                      |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | **fsd/forbidden-imports**         | 상위 레이어에서의 import나 슬라이스 간 교차 import를 방지합니다.                                          |
-| **fsd/no-relative-imports**       | 서로 다른 슬라이스나 레이어 간의 상대 경로 import를 금지합니다. 같은 슬라이스 내에서는 상대 경로 허용.   |
+| **fsd/no-relative-imports**       | 서로 다른 슬라이스나 레이어 간의 상대 경로 import를 금지합니다. 같은 슬라이스 내에서는 상대 경로 허용.    |
 | **fsd/no-public-api-sidestep**    | Public API를 사용하지 않고 내부 모듈을 직접 import하는 것을 방지합니다.                                   |
 | **fsd/no-cross-slice-dependency** | 같은 레이어 내 서로 다른 슬라이스 간의 직접 의존성을 금지합니다 (features뿐만 아니라 모든 레이어에 적용). |
 | **fsd/no-ui-in-business-logic**   | 비즈니스 로직 레이어(e.g., entities)에서 UI를 import하지 못하도록 합니다.                                 |
@@ -232,15 +236,15 @@ import { formatCurrency } from '../../shared/utils';
 
 ```javascript
 // ❌ 잘못된 예 (서로 다른 슬라이스 간 상대 경로 import)
-import { fetchUser } from "../another-slice/model/api";
+import { fetchUser } from '../another-slice/model/api';
 
 // ✅ 올바른 예 (같은 슬라이스 내에서 상대 경로 import)
-import { fetchData } from "../model/api";
+import { fetchData } from '../model/api';
 
 // ✅ 올바른 예 (슬라이스나 레이어 간에는 별칭 import)
-import { Button } from "@shared/ui/Button";
+import { Button } from '@shared/ui/Button';
 // @/shared 형식도 지원
-import { Button } from "@/shared/ui/Button";
+import { Button } from '@/shared/ui/Button';
 ```
 
 <br/>
@@ -269,13 +273,13 @@ import { authSlice } from '../../features/auth';
 
 ```javascript
 // ❌ 잘못된 예 (같은 레이어에서 다른 슬라이스 import)
-import { processPayment } from "../../features/payment";
+import { processPayment } from '../../features/payment';
 
 // ✅ 올바른 예 (entities/shared를 중간에 사용)
-import { PaymentEntity } from "../../entities/payment";
+import { PaymentEntity } from '../../entities/payment';
 
 // ❌ 또한 잘못된 예 (entities 슬라이스가 다른 entities 슬라이스 import)
-import { Product } from "../../entities/product";
+import { Product } from '../../entities/product';
 // 이 규칙은 이제 features뿐만 아니라 모든 레이어에 적용됩니다!
 ```
 
@@ -410,9 +414,11 @@ import { Header } from '../widgets/Header'; // Widgets
 ## 🆕 새로운 기능
 
 ### 1. 크로스 플랫폼 호환성
+
 이 플러그인은 이제 내부적으로 파일 경로를 정규화하여 Windows와 Unix 기반 시스템 모두에서 원활하게 작동합니다.
 
 ### 2. 유연한 폴더 이름 패턴
+
 이제 폴더에 번호 접두사 등의 이름 지정 규칙을 사용할 수 있습니다:
 
 ```js
@@ -427,6 +433,7 @@ import { Header } from '../widgets/Header'; // Widgets
 ```
 
 이를 통해 다음과 같은 구조를 사용할 수 있습니다:
+
 ```
 src/
   1_app/
@@ -438,6 +445,7 @@ src/
 ```
 
 ### 3. 다양한 별칭 형식 지원
+
 이제 플러그인은 `@shared`와 `@/shared` 형식 모두 지원합니다:
 
 ```js
@@ -451,6 +459,7 @@ src/
 ```
 
 ### 4. 향상된 cross-slice-dependency 규칙
+
 `no-cross-slice-dependency` 규칙은 이제 기본적으로 features뿐만 아니라 모든 레이어에 적용됩니다:
 
 ```js
@@ -461,10 +470,81 @@ src/
 ```
 
 ### 5. 사전 정의된 구성 프로필
+
 이제 여러 구성 프리셋을 사용할 수 있습니다:
+
 - `recommended` - 표준 권장 설정
 - `strict` - 최대 강제 수준
 - `base` - 쉬운 도입을 위한 덜 엄격한 설정
+
+### 6. 포괄적인 테스트 커버리지
+
+이 플러그인은 이제 모든 규칙에 대한 광범위한 테스트 케이스를 포함합니다:
+
+- 기본 import 시나리오
+- 엣지 케이스와 복잡한 패턴
+- 경로 변형 (Windows, Unix, 혼합)
+- 사용자 정의 구성
+- 실제 사용 예시
+
+### 경로 별칭 지원
+
+플러그인은 이제 다양한 경로 별칭 형식을 올바르게 처리합니다:
+
+```javascript
+// 두 형식 모두 지원됩니다
+import { UserCard } from '@entities/user';
+import { UserCard } from '@/entities/user';
+```
+
+### 동적 import 지원
+
+모든 규칙이 이제 동적 import를 지원합니다:
+
+```javascript
+// 유효한 동적 import
+const UserCard = await import('@entities/user');
+const { UserCard } = await import('@entities/user');
+
+// 유효하지 않은 동적 import (규칙에 의해 감지됨)
+const UserCard = await import('@entities/user/ui');
+```
+
+### 포괄적인 테스트 커버리지
+
+모든 규칙이 이제 철저하게 테스트되었습니다:
+
+- 기본 import 시나리오
+- 엣지 케이스와 복잡한 패턴
+- 경로 변형 (Windows, Unix, 혼합)
+- 사용자 정의 구성
+- 실제 사용 예제
+- 경로 별칭 형식
+- 동적 import 패턴
+
+## 규칙
+
+### no-public-api-sidestep
+
+내부 모듈에서의 직접 import를 방지하고 public API 사용을 강제합니다.
+
+```javascript
+// ✅ 유효함: public API 사용
+import { UserCard } from '@entities/user';
+import { UserCard } from '@/entities/user'; // 이것도 유효함
+import { UserCard } from '@entities/user/index';
+
+// ❌ 유효하지 않음: 내부 직접 import
+import { UserCard } from '@entities/user/ui/UserCard';
+import { UserCard } from '@entities/user/model/types';
+
+// ✅ 유효함: public API를 사용하는 동적 import
+const UserCard = await import('@entities/user');
+const { UserCard } = await import('@entities/user');
+
+// ❌ 유효하지 않음: public API를 우회하는 동적 import
+const UserCard = await import('@entities/user/ui/UserCard');
+```
 
 ---
 
