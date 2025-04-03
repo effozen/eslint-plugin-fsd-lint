@@ -6,3 +6,4 @@ eslint.config.mjs
 .vscode/
 .DS_Store/
 vitest.config.js
+test-project
