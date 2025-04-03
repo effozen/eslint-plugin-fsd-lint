@@ -7,3 +7,5 @@ eslint.config.mjs
 .DS_Store/
 vitest.config.js
 test-project
+.github/
+html/
