@@ -83,17 +83,39 @@ export default [
       fsd: fsdPlugin,
     },
     rules: {
+      // FSD 레이어 import 규칙 강제 (예: features는 pages를 import 불가)
       'fsd/forbidden-imports': 'error',
+
+      // 슬라이스/레이어 간 상대 경로 import 금지, 별칭(@) 사용
+      // 기본적으로 같은 슬라이스 내 상대 경로는 허용 (설정 가능)
       'fsd/no-relative-imports': 'error',
+
+      // Public API (index 파일)를 통한 import만 허용
       'fsd/no-public-api-sidestep': 'error',
+
+      // 같은 레이어 내 슬라이스 간 직접 import 방지
       'fsd/no-cross-slice-dependency': 'error',
+
+      // 비즈니스 로직 레이어에서 UI import 방지
       'fsd/no-ui-in-business-logic': 'error',
+
+      // 전역 스토어 직접 import 금지
       'fsd/no-global-store-imports': 'error',
+
+      // FSD 레이어 기반으로 import 순서 강제
       'fsd/ordered-imports': 'warn',
     },
   },
 ];
 ```
+
+**기본적으로 강제되는 주요 원칙:**
+
+- **레이어 임포트**: 상위 레이어는 하위 레이어를 임포트할 수 없습니다 (예: `features`는 `pages`를 임포트할 수 없음).
+- **슬라이스 격리**: 같은 레이어 내의 슬라이스는 서로 직접 임포트해서는 안 됩니다 (`no-cross-slice-dependency`).
+- **Public API 사용**: 다른 슬라이스/레이어에서의 임포트는 해당 슬라이스/레이어의 Public API(`index.js` 또는 `index.ts`)를 통해 이루어져야 합니다. 내부 모듈 직접 임포트는 금지됩니다 (`no-public-api-sidestep`).
+- **절대 경로 (별칭)**: 서로 다른 슬라이스나 레이어 간의 임포트에는 절대 경로(예: `@`와 같은 별칭으로 설정됨)를 사용하세요. 상대 경로는 일반적으로 금지됩니다 (`no-relative-imports`).
+- **슬라이스 내 상대 경로**: _같은 슬라이스 내에서의_ 임포트에는 상대 경로가 **허용됩니다** (예: feature 내에서 `../lib`의 헬퍼를 임포트). 이는 `no-relative-imports`의 `allowSameSlice` 옵션으로 설정 가능합니다 (기본값: true).
 
 ### 📌 사용 가능한 구성
 
@@ -160,7 +182,7 @@ src/
 ├── app/         (또는 1_app/)
 │   ├── providers/
 │   ├── store.js
-│   ├── index.js
+│   ├── index.js  // 앱의 Public API
 │
 ├── processes/   (또는 2_processes/)
 │   ├── auth/
@@ -168,27 +190,70 @@ src/
 │
 ├── pages/       (또는 3_pages/)
 │   ├── HomePage/
+│   │   ├── ui/     // HomePage를 위한 UI 컴포넌트
+│   │   └── index.ts  // HomePage의 Public API
 │   ├── ProfilePage/
 │
 ├── widgets/     (또는 4_widgets/)
 │   ├── Navbar/
+│   │   ├── ui/
+│   │   └── index.ts  // Navbar의 Public API
 │   ├── Sidebar/
 │
 ├── features/    (또는 5_features/)
 │   ├── login/
+│   │   ├── ui/     // login feature를 위한 UI 컴포넌트
+│   │   ├── model/  // login을 위한 비즈니스 로직
+│   │   └── index.ts  // login feature의 Public API
 │   ├── registration/
 │
 ├── entities/    (또는 6_entities/)
 │   ├── user/
+│   │   ├── ui/
+│   │   ├── model/
+│   │   └── index.ts  // user entity의 Public API
 │   ├── post/
 │
 ├── shared/      (또는 7_shared/)
-│   ├── ui/
-│   ├── utils/
+│   ├── ui/       // 재사용 가능한 UI 컴포넌트
+│   │   └── Button/ // 예시: Button 컴포넌트
+│   ├── lib/      // 유틸리티 함수, 헬퍼
+│   ├── config/   // 공유 설정
+│   └── index.ts    // shared 레이어의 Public API (선택 사항)
+
 ```
 
-> 💡 팁: 이 플러그인은 FSD 원칙에 따라 올바른 레이어 간 import를 강제합니다. 예를 들어, feature는 entities나 shared를 의존할 수 있지만, 다른 feature를 직접 import할 수는 없습니다.  
-> 상대 경로 import는 **같은 슬라이스 내에서만** 허용되고, 서로 다른 슬라이스나 레이어 간에는 피해야 합니다.
+**구조 기반 Import 예시:**
+
+- **허용됨 (별칭 Import - 슬라이스/레이어 간):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { Button } from '@shared/ui/Button'; // OK: Feature가 별칭을 통해 Shared UI 사용
+  import { getUser } from '@entities/user'; // OK: Feature가 Public API를 통해 User 엔티티 사용
+  ```
+- **허용됨 (상대 경로 Import - 같은 슬라이스 내):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { validateInput } from '../lib/validation'; // OK: 'login' feature 슬라이스 내에서 상대 경로 import
+  ```
+- **금지됨 (상대 경로 Import - 슬라이스/레이어 간):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { config } from '../../../app/config'; // BAD: 다른 레이어로의 상대 경로
+  import { User } from '../../entities/user/model/types'; // BAD: 상대 경로 + Public API 우회
+  ```
+- **금지됨 (Public API 우회):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { userSlice } from '@entities/user/model/slice'; // BAD: 내부 모듈 직접 import
+  ```
+- **금지됨 (슬라이스 간 의존성):**
+  ```javascript
+  // features/login/model/auth.ts
+  import { startRegistration } from '@features/registration'; // BAD: 'login' feature가 'registration' feature 직접 import
+  ```
+
+> 💡 팁: 이러한 import 규칙, 특히 별칭 사용과 Public API 준수는 코드베이스의 리팩토링과 유지보수를 훨씬 쉽게 만듭니다.
 
 ---
 

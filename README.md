@@ -83,17 +83,39 @@ export default [
       fsd: fsdPlugin,
     },
     rules: {
+      // Enforces FSD layer import rules (e.g., features cannot import pages)
       'fsd/forbidden-imports': 'error',
+
+      // Disallows relative imports between slices/layers, use aliases (@)
+      // Allows relative imports within the same slice by default (configurable)
       'fsd/no-relative-imports': 'error',
+
+      // Enforces importing only via public API (index files)
       'fsd/no-public-api-sidestep': 'error',
+
+      // Prevents direct imports between slices in the same layer
       'fsd/no-cross-slice-dependency': 'error',
+
+      // Prevents UI imports in business logic layers (e.g., entities)
       'fsd/no-ui-in-business-logic': 'error',
+
+      // Forbids direct import of the global store
       'fsd/no-global-store-imports': 'error',
+
+      // Enforces import order based on FSD layers
       'fsd/ordered-imports': 'warn',
     },
   },
 ];
 ```
+
+**Key Principles Enforced by Default:**
+
+- **Layered Imports**: Higher layers cannot import from lower layers (e.g., `features` cannot import `pages`).
+- **Slice Isolation**: Slices within the same layer should not directly import each other (`no-cross-slice-dependency`).
+- **Public API Usage**: Imports from other slices/layers must go through their public API (`index.js` or `index.ts`). Direct internal imports are forbidden (`no-public-api-sidestep`).
+- **Absolute Paths (Aliases)**: Use absolute paths (configured via aliases like `@`) for imports between different slices or layers. Relative paths are generally disallowed (`no-relative-imports`).
+- **Relative Paths within Slices**: Relative paths are **allowed** for imports _within the same slice_ (e.g., importing a helper from `../lib` inside a feature). This is configurable via the `allowSameSlice` option in `no-relative-imports` (default: true).
 
 ### 📌 Available Configurations
 
@@ -160,7 +182,7 @@ src/
 ├── app/         (or 1_app/)
 │   ├── providers/
 │   ├── store.js
-│   ├── index.js
+│   ├── index.js  // Public API for app
 │
 ├── processes/   (or 2_processes/)
 │   ├── auth/
@@ -168,28 +190,70 @@ src/
 │
 ├── pages/       (or 3_pages/)
 │   ├── HomePage/
+│   │   ├── ui/     // UI components for HomePage
+│   │   └── index.ts  // Public API for HomePage
 │   ├── ProfilePage/
 │
 ├── widgets/     (or 4_widgets/)
 │   ├── Navbar/
+│   │   ├── ui/
+│   │   └── index.ts  // Public API for Navbar
 │   ├── Sidebar/
 │
 ├── features/    (or 5_features/)
 │   ├── login/
+│   │   ├── ui/     // UI components for login feature
+│   │   ├── model/  // Business logic for login
+│   │   └── index.ts  // Public API for login feature
 │   ├── registration/
 │
 ├── entities/    (or 6_entities/)
 │   ├── user/
+│   │   ├── ui/
+│   │   ├── model/
+│   │   └── index.ts  // Public API for user entity
 │   ├── post/
 │
 ├── shared/      (or 7_shared/)
-│   ├── ui/
-│   ├── utils/
+│   ├── ui/       // Reusable UI components
+│   │   └── Button/ // Example: Button component
+│   ├── lib/      // Utility functions, helpers
+│   ├── config/   // Shared configuration
+│   └── index.ts    // Public API for shared layer (optional)
 
 ```
 
-> 💡 Tip: The plugin enforces correct layer imports according to FSD principles. For example, a feature can depend on entities and shared, but cannot directly import another feature.<br/>  
-> Relative imports are allowed **only within the same slice**, but must be avoided across different slices or layers.
+**Import Examples based on Structure:**
+
+- **Allowed (Alias Import - Cross Slice/Layer):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { Button } from '@shared/ui/Button'; // OK: Feature uses Shared UI via alias
+  import { getUser } from '@entities/user'; // OK: Feature uses User entity via public API
+  ```
+- **Allowed (Relative Import - Same Slice):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { validateInput } from '../lib/validation'; // OK: Relative import within the 'login' feature slice
+  ```
+- **Disallowed (Relative Import - Cross Slice/Layer):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { config } from '../../../app/config'; // BAD: Relative path to different layer
+  import { User } from '../../entities/user/model/types'; // BAD: Relative path + Public API sidestep
+  ```
+- **Disallowed (Public API Sidestep):**
+  ```javascript
+  // features/login/ui/LoginForm.tsx
+  import { userSlice } from '@entities/user/model/slice'; // BAD: Importing internal module directly
+  ```
+- **Disallowed (Cross-Slice Dependency):**
+  ```javascript
+  // features/login/model/auth.ts
+  import { startRegistration } from '@features/registration'; // BAD: 'login' feature directly imports 'registration' feature
+  ```
+
+> 💡 Tip: Sticking to these import rules, especially using aliases and respecting public APIs, makes your codebase much easier to refactor and maintain.
 
 ---
 
