@@ -248,6 +248,25 @@ import { Button } from '@shared/ui/Button';
 import { Button } from '@/shared/ui/Button';
 ```
 
+#### Available options:
+
+```javascript
+// In your eslint.config.js:
+'fsd/no-relative-imports': ['error', {
+  // Allow relative imports within the same slice (enabled by default)
+  allowSameSlice: true,
+
+  // Allow type-only imports to use relative paths (disabled by default)
+  allowTypeImports: false,
+
+  // Patterns for test files that can ignore this rule
+  testFilesPatterns: ['\\.test\\.', '\\.spec\\.'],
+
+  // Patterns for imports to ignore
+  ignoreImportPatterns: []
+}]
+```
+
 <br/>
 
 ### 3️⃣ fsd/no-public-api-sidestep

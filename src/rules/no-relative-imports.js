@@ -4,6 +4,7 @@
 
 import { isRelativePath, isTestFile, normalizePath } from '../utils/path-utils.js';
 import { mergeConfig } from '../utils/config-utils.js';
+import path from 'path';
 
 export default {
   meta: {
@@ -31,6 +32,10 @@ export default {
             type: 'boolean',
             description: 'Allow relative imports for type-only imports',
           },
+          allowSameSlice: {
+            type: 'boolean',
+            description: 'Allow relative imports within the same slice',
+          },
         },
         additionalProperties: false,
       },
@@ -44,6 +49,33 @@ export default {
 
     // Allow type imports if configured
     const allowTypeImports = options.allowTypeImports || false;
+
+    // Allow same slice imports if configured
+    const allowSameSlice = options.allowSameSlice || false;
+
+    // Helper function to check if import is within the same slice
+    function isSameSlice(importPath, currentFilePath) {
+      if (!allowSameSlice) return false;
+
+      const normalizedCurrentPath = normalizePath(currentFilePath);
+      // Get the base directory of the current file
+      const currentDir = path.dirname(normalizedCurrentPath);
+      // Resolve the import path relative to the current file
+      const resolvedImportPath = path.resolve(currentDir, importPath);
+
+      // FSD slice boundaries are typically 2-3 levels deep (e.g., features/auth, entities/user)
+      // Extract slice path segments
+      const sliceSegments = normalizedCurrentPath.split('/');
+      // We need at least layer and slice name (e.g., features/auth)
+      if (sliceSegments.length < 4) return false;
+
+      // Get layer and slice (e.g., "features/auth")
+      const layer = sliceSegments[sliceSegments.length - 4]; // Typically "src/features/auth/ui/component.tsx"
+      const slice = sliceSegments[sliceSegments.length - 3];
+
+      // Check if import path is in the same layer/slice
+      return resolvedImportPath.includes(`/${layer}/${slice}/`);
+    }
 
     return {
       ImportDeclaration(node) {
@@ -71,6 +103,11 @@ export default {
 
         // Skip type-only imports if configured
         if (allowTypeImports && node.importKind === 'type') {
+          return;
+        }
+
+        // Skip same slice imports if configured
+        if (allowSameSlice && isSameSlice(importPath, context.getFilename())) {
           return;
         }
 
@@ -106,7 +143,11 @@ export default {
 
           // For dynamic imports, we can't check if it's a type import
           // as that information is not available at parse time
-          // So we'll always report relative imports in dynamic imports
+
+          // Skip same slice imports if configured
+          if (allowSameSlice && isSameSlice(importPath, context.getFilename())) {
+            return;
+          }
 
           context.report({
             node,

@@ -247,6 +247,25 @@ import { Button } from '@shared/ui/Button';
 import { Button } from '@/shared/ui/Button';
 ```
 
+#### 사용 가능한 옵션:
+
+```javascript
+// eslint.config.js 파일에서:
+'fsd/no-relative-imports': ['error', {
+  // 같은 슬라이스 내에서 상대 경로 import 허용 (기본값: true)
+  allowSameSlice: true,
+
+  // 타입 전용 import에 상대 경로 사용 허용 (기본값: false)
+  allowTypeImports: false,
+
+  // 이 규칙을 무시할 수 있는 테스트 파일 패턴
+  testFilesPatterns: ['\\.test\\.', '\\.spec\\.'],
+
+  // 무시할 import 패턴
+  ignoreImportPatterns: []
+}]
+```
+
 <br/>
 
 ### 3️⃣ fsd/no-public-api-sidestep

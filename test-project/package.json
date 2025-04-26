@@ -2,6 +2,7 @@
   "name": "fsd-lint-test-project",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@reduxjs/toolkit": "^2.6.1",
     "@testing-library/jest-dom": "^5.17.0",
@@ -45,7 +46,11 @@
     ]
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "eslint-plugin-fsd-lint": "file:.."
+    "@eslint/js": "^9.25.1",
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "@typescript-eslint/parser": "^8.31.0",
+    "eslint": "^9.25.1",
+    "eslint-plugin-fsd-lint": "file:..",
+    "eslint-plugin-react": "^7.37.5"
   }
 }
