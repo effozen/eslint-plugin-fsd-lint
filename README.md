@@ -1,4 +1,4 @@
-# 🚀 eslint-plugin-fsd-lint 🚀
+# 🚀 eslint-plugin-fsd-lint
 
 [![npm version](https://img.shields.io/npm/v/eslint-plugin-fsd-lint)](https://www.npmjs.com/package/eslint-plugin-fsd-lint)
 [![npm downloads](https://img.shields.io/npm/dt/eslint-plugin-fsd-lint)](https://www.npmjs.com/package/eslint-plugin-fsd-lint)
@@ -7,138 +7,139 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
-> It supports ESLint 9+ and the new Flat Config system.
+> ESLint 9 plugin for enforcing Feature-Sliced Design rules with Flat Config support.
 
-## 📖 Introduction
+## Overview
 
-`eslint-plugin-fsd-lint` is an ESLint plugin that enforces best practices for Feature-Sliced Design (FSD) architecture. <br/>  
-It is fully **compatible with ESLint 9+** and follows the modern **Flat Config format**, ensuring seamless integration into modern JavaScript and TypeScript projects.
+`eslint-plugin-fsd-lint` helps you keep a Feature-Sliced Design codebase predictable as it grows.
+It focuses on the rules that usually start drifting first:
 
-### ✨ Why use this plugin?
+- layer boundaries
+- public API discipline
+- same-layer slice isolation
+- relative import hygiene
+- UI/business-logic separation
+- stable import ordering
 
-- **Flat Config support**: Fully compatible with **ESLint 9+** and the **new Flat Config system**.
-- **Strict FSD compliance**: Prevents architectural violations in feature-based project structures.
-- **Improves maintainability**: Encourages clear module separation and dependency control.
-- **Ensures consistent code quality**: Standardizes import patterns and best practices.
-- **Cross-platform compatibility**: Works seamlessly on both Windows and Unix-based systems.
-- **Flexible folder naming**: Supports custom folder naming patterns (e.g., `1_app`, `2_pages`).
-- **Multiple alias formats**: Supports both `@shared` and `@/shared` import styles.
-- **Comprehensive test coverage**: Thoroughly tested with real-world scenarios and edge cases.
+It is built for modern ESLint setups and works with:
 
-### 🔍 What is Feature-Sliced Design?
-
-Feature-Sliced Design (FSD) is a modern architecture pattern that provides a structured approach to organizing frontend applications. <br/>  
-This plugin enforces key FSD principles such as **proper layer separation, import restrictions, and dependency management**,  
-helping developers build scalable and maintainable codebases.
-
----
-
-## 📦 Installation
-
-You can install `eslint-plugin-fsd-lint` via **npm** or **pnpm**:
-
-### Using npm:
-
-```shell
-npm install --save-dev eslint-plugin-fsd-lint
-```
-
-### Using pnpm:
-
-```shell
-pnpm add -D eslint-plugin-fsd-lint
-```
-
-### Peer Dependencies
-
-This plugin requires ESLint 9+ to work properly.
-
-Make sure you have ESLint installed in your project:
-
-```shell
-npm install --save-dev eslint
-```
-
-> 💡 Tip: If you're using a monorepo with multiple packages, install eslint-plugin-fsd-lint at the root level to share the configuration across all workspaces.
+- ESLint 9+
+- Flat Config
+- JavaScript and TypeScript projects
+- Windows and Unix-style paths
+- both `@shared/...` and `@/shared/...` aliases
+- custom folder naming like `1_app`, `2_pages`, `5_features`
+- custom source roots through `rootPath`
 
 ---
 
-## 🚀 Usage & Configuration
+## Installation
 
-### 🔧 Flat Config Setup (`eslint.config.mjs`)
+Install the plugin and make sure ESLint 9+ is available in your project.
 
-`eslint-plugin-fsd-lint` is designed for **ESLint 9+** and works seamlessly with the **Flat Config system**. <br/>
-To use it in your project, add the following configuration to your `eslint.config.mjs`:
+```shell
+npm install --save-dev eslint eslint-plugin-fsd-lint
+```
+
+Or with pnpm:
+
+```shell
+pnpm add -D eslint eslint-plugin-fsd-lint
+```
+
+---
+
+## Quick Start
+
+### Recommended Preset
+
+Use the built-in preset if you want sensible defaults with minimal setup.
 
 ```js
 import fsdPlugin from 'eslint-plugin-fsd-lint';
 
 export default [
-  // Use the recommended preset
   fsdPlugin.configs.recommended,
+];
+```
 
-  // Or configure rules individually
+### Strict Preset
+
+Use `strict` when you want all architectural checks to fail the build.
+
+```js
+import fsdPlugin from 'eslint-plugin-fsd-lint';
+
+export default [
+  fsdPlugin.configs.strict,
+];
+```
+
+### Base Preset
+
+Use `base` if you are gradually adopting FSD rules in an existing codebase.
+
+```js
+import fsdPlugin from 'eslint-plugin-fsd-lint';
+
+export default [
+  fsdPlugin.configs.base,
+];
+```
+
+### Manual Configuration
+
+Use manual configuration when you want fine-grained control over each rule.
+
+```js
+import fsdPlugin from 'eslint-plugin-fsd-lint';
+
+export default [
   {
     plugins: {
       fsd: fsdPlugin,
     },
     rules: {
-      // Enforces FSD layer import rules (e.g., features cannot import pages)
       'fsd/forbidden-imports': 'error',
-
-      // Disallows relative imports between slices/layers, use aliases (@)
-      // Allows relative imports within the same slice by default (configurable)
       'fsd/no-relative-imports': 'error',
-
-      // Enforces importing only via public API (index files)
       'fsd/no-public-api-sidestep': 'error',
-
-      // Prevents direct imports between slices in the same layer
       'fsd/no-cross-slice-dependency': 'error',
-
-      // Prevents UI imports in business logic layers (e.g., entities)
       'fsd/no-ui-in-business-logic': 'error',
-
-      // Forbids direct import of the global store
       'fsd/no-global-store-imports': 'error',
-
-      // Enforces import order based on FSD layers
       'fsd/ordered-imports': 'warn',
     },
   },
 ];
 ```
 
-**Key Principles Enforced by Default:**
+---
 
-- **Layered Imports**: Higher layers cannot import from lower layers (e.g., `features` cannot import `pages`).
-- **Slice Isolation**: Slices within the same layer should not directly import each other (`no-cross-slice-dependency`).
-- **Public API Usage**: Imports from other slices/layers must go through their public API (`index.js` or `index.ts`). Direct internal imports are forbidden (`no-public-api-sidestep`).
-- **Absolute Paths (Aliases)**: Use absolute paths (configured via aliases like `@`) for imports between different slices or layers. Relative paths are generally disallowed (`no-relative-imports`).
-- **Relative Paths within Slices**: Relative paths are **allowed** for imports _within the same slice_ (e.g., importing a helper from `../lib` inside a feature). This is configurable via the `allowSameSlice` option in `no-relative-imports` (default: true).
+## What The Rules Enforce
 
-### 📌 Available Configurations
+- **Layer direction**: higher layers cannot import from lower-priority layers they should not know about.
+- **Slice isolation**: one slice cannot reach directly into another slice in the same layer.
+- **Public APIs**: other slices should import through `index.ts`, `index.js`, or allowed segment-level public entry points.
+- **Stable imports**: cross-slice and cross-layer imports should use aliases instead of brittle relative paths.
+- **Business logic purity**: model/api/lib code should not pull UI code into places where it does not belong.
+- **Readable import blocks**: FSD imports are grouped in a predictable order.
 
-The plugin provides three pre-defined configurations for different strictness levels:
+---
 
-```js
-import fsdPlugin from 'eslint-plugin-fsd-lint';
+## Common Configuration Options
 
-export default [
-  // Standard recommended configuration
-  fsdPlugin.configs.recommended,
+Several rules support the same core options.
 
-  // Strict configuration (all rules as error)
-  // fsdPlugin.configs.strict,
+| Option | Purpose | Example |
+| --- | --- | --- |
+| `alias` | Defines the import alias format for your project. | `{ value: '@', withSlash: false }` |
+| `rootPath` | Tells the plugin where the FSD tree starts in the absolute file path. Useful for monorepos or nested apps. | `'/apps/web/src/'` |
+| `folderPattern` | Supports numbered or customized layer directory names. | `{ enabled: true, regex: '^(\\d+_)?(.*)', extractionGroup: 2 }` |
+| `testFilesPatterns` | Allows test files to bypass specific architectural rules. | `['**/*.test.*', '**/*.spec.*']` |
+| `ignoreImportPatterns` | Skips selected import paths for a rule. | `['/types$', '^virtual:']` |
 
-  // Base configuration (less strict)
-  // fsdPlugin.configs.base,
-];
-```
+### `rootPath` Example
 
-### 🛠️ Advanced Configuration
-
-You can customize the behavior of the rules with advanced options:
+If your project does not start directly at `/src/`, set `rootPath` so file-path based rules can still resolve the current layer and slice correctly.
 
 ```js
 import fsdPlugin from 'eslint-plugin-fsd-lint';
@@ -149,18 +150,44 @@ export default [
       fsd: fsdPlugin,
     },
     rules: {
-      // Configure alias format and folder patterns
+      'fsd/forbidden-imports': ['error', { rootPath: '/apps/storefront/src/' }],
+      'fsd/no-cross-slice-dependency': ['error', { rootPath: '/apps/storefront/src/' }],
+      'fsd/no-ui-in-business-logic': ['error', { rootPath: '/apps/storefront/src/' }],
+    },
+  },
+];
+```
+
+Typical `rootPath` values:
+
+- `'/src/'`
+- `'/apps/web/src/'`
+- `'/packages/admin/src/'`
+- `'/src/root/'`
+
+The value should match a stable segment inside the absolute path ESLint sees for your files.
+
+---
+
+## Advanced Configuration
+
+```js
+import fsdPlugin from 'eslint-plugin-fsd-lint';
+
+export default [
+  {
+    plugins: {
+      fsd: fsdPlugin,
+    },
+    rules: {
       'fsd/forbidden-imports': [
         'error',
         {
-          // Support for custom root directory
-          rootPath: '/src/root/',
-          // Support for @shared or @/shared import styles
+          rootPath: '/apps/web/src/',
           alias: {
             value: '@',
-            withSlash: false, // Use true for @/shared format
+            withSlash: false,
           },
-          // Support for numbered folder prefixes
           folderPattern: {
             enabled: true,
             regex: '^(\\d+_)?(.*)',
@@ -168,464 +195,254 @@ export default [
           },
         },
       ],
-
-      // Other rules...
+      'fsd/no-cross-slice-dependency': [
+        'error',
+        {
+          rootPath: '/apps/web/src/',
+          featuresOnly: false,
+          allowTypeImports: true,
+        },
+      ],
+      'fsd/no-ui-in-business-logic': [
+        'error',
+        {
+          rootPath: '/apps/web/src/',
+          businessLogicLayers: ['model', 'api', 'lib'],
+          uiLayers: ['ui', 'widgets', 'features'],
+        },
+      ],
+      'fsd/no-relative-imports': [
+        'error',
+        {
+          allowSameSlice: true,
+          allowTypeImports: false,
+        },
+      ],
     },
   },
 ];
 ```
 
-### 📂 Example Project Structure
+---
 
-Here's how an FSD-compliant project might look:
+## Example Project Structure
 
-```plaintext
+```text
 src/
-├── app/         (or 1_app/)
+├── app/
 │   ├── providers/
-│   ├── store.js
-│   ├── index.js  // Public API for app
-│
-├── processes/   (or 2_processes/)
-│   ├── auth/
-│   ├── onboarding/
-│
-├── pages/       (or 3_pages/)
-│   ├── HomePage/
-│   │   ├── ui/     // UI components for HomePage
-│   │   └── index.ts  // Public API for HomePage
-│   ├── ProfilePage/
-│
-├── widgets/     (or 4_widgets/)
-│   ├── Navbar/
-│   │   ├── ui/
-│   │   └── index.ts  // Public API for Navbar
-│   ├── Sidebar/
-│
-├── features/    (or 5_features/)
-│   ├── login/
-│   │   ├── ui/     // UI components for login feature
-│   │   ├── model/  // Business logic for login
-│   │   └── index.ts  // Public API for login feature
-│   ├── registration/
-│
-├── entities/    (or 6_entities/)
-│   ├── user/
-│   │   ├── ui/
-│   │   ├── model/
-│   │   └── index.ts  // Public API for user entity
-│   ├── post/
-│
-├── shared/      (or 7_shared/)
-│   ├── ui/       // Reusable UI components
-│   │   └── Button/ // Example: Button component
-│   ├── lib/      // Utility functions, helpers
-│   ├── config/   // Shared configuration
-│   └── index.ts    // Public API for shared layer (optional)
-
+│   ├── store/
+│   └── index.ts
+├── processes/
+├── pages/
+│   └── login/
+│       ├── ui/
+│       └── index.ts
+├── widgets/
+│   └── header/
+│       ├── ui/
+│       └── index.ts
+├── features/
+│   └── auth/
+│       ├── api/
+│       ├── lib/
+│       ├── model/
+│       ├── ui/
+│       └── index.ts
+├── entities/
+│   └── user/
+│       ├── model/
+│       ├── ui/
+│       └── index.ts
+└── shared/
+    ├── api/
+    ├── config/
+    ├── lib/
+    └── ui/
 ```
 
-**Import Examples based on Structure:**
+Numbered folders also work when `folderPattern` is enabled:
 
-- **Allowed (Alias Import - Cross Slice/Layer):**
-  ```javascript
-  // features/login/ui/LoginForm.tsx
-  import { Button } from '@shared/ui/Button'; // OK: Feature uses Shared UI via alias
-  import { getUser } from '@entities/user'; // OK: Feature uses User entity via public API
-  ```
-- **Allowed (Relative Import - Same Slice):**
-  ```javascript
-  // features/login/ui/LoginForm.tsx
-  import { validateInput } from '../lib/validation'; // OK: Relative import within the 'login' feature slice
-  ```
-- **Disallowed (Relative Import - Cross Slice/Layer):**
-  ```javascript
-  // features/login/ui/LoginForm.tsx
-  import { config } from '../../../app/config'; // BAD: Relative path to different layer
-  import { User } from '../../entities/user/model/types'; // BAD: Relative path + Public API sidestep
-  ```
-- **Disallowed (Public API Sidestep):**
-  ```javascript
-  // features/login/ui/LoginForm.tsx
-  import { userSlice } from '@entities/user/model/slice'; // BAD: Importing internal module directly
-  ```
-- **Disallowed (Cross-Slice Dependency):**
-  ```javascript
-  // features/login/model/auth.ts
-  import { startRegistration } from '@features/registration'; // BAD: 'login' feature directly imports 'registration' feature
-  ```
-
-> 💡 Tip: Sticking to these import rules, especially using aliases and respecting public APIs, makes your codebase much easier to refactor and maintain.
+```text
+src/
+├── 1_app/
+├── 2_pages/
+├── 3_widgets/
+├── 4_features/
+├── 5_entities/
+└── 6_shared/
+```
 
 ---
 
-## 🔍 Supported Rules
+## Rules
 
-This plugin provides a set of ESLint rules that enforce **Feature-Sliced Design (FSD) best practices**. <br/>
-Each rule helps maintain a **clear module structure, enforce import constraints, and prevent architectural violations**.
-
-| Rule                              | Description                                                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **fsd/forbidden-imports**         | Prevents imports from higher layers and cross-imports between slices.                                        |
-| **fsd/no-relative-imports**       | Disallows relative imports across different slices or layers. Allows relative imports within the same slice. |
-| **fsd/no-public-api-sidestep**    | Prevents direct imports from internal modules, enforcing public API usage.                                   |
-| **fsd/no-cross-slice-dependency** | Disallows direct dependencies between slices in the same layer (applies to all layers, not just features).   |
-| **fsd/no-ui-in-business-logic**   | Prevents UI imports inside business logic layers (e.g., `entities`).                                         |
-| **fsd/no-global-store-imports**   | Forbids direct imports of global state (`store`).                                                            |
-| **fsd/ordered-imports**           | Enforces import grouping by layer.                                                                           |
+| Rule | What it protects | Key options |
+| --- | --- | --- |
+| `fsd/forbidden-imports` | Layer direction and invalid layer-to-layer imports | `alias`, `rootPath`, `folderPattern`, `ignoreImportPatterns` |
+| `fsd/no-relative-imports` | Relative imports across slices or layers | `allowSameSlice`, `allowTypeImports`, `ignoreImportPatterns` |
+| `fsd/no-public-api-sidestep` | Direct access to internal modules | `publicApi`, `ignoreImportPatterns` |
+| `fsd/no-cross-slice-dependency` | Direct dependencies between slices in the same layer | `rootPath`, `featuresOnly`, `allowTypeImports`, `excludeLayers` |
+| `fsd/no-ui-in-business-logic` | UI imports inside model/api/lib code | `rootPath`, `uiLayers`, `businessLogicLayers`, `allowTypeImports` |
+| `fsd/no-global-store-imports` | Direct store imports | `ignoreImportPatterns` |
+| `fsd/ordered-imports` | Stable FSD import ordering | no options |
 
 ---
 
-## 📌 Rule Details & Examples
+## Rule Examples
 
-### **1️⃣ fsd/forbidden-imports**
-
-**Prevents imports from higher layers and cross-imports between slices.** <br/>  
-✅ **Allowed:** `features` can import from `entities` or `shared` <br/>
-❌ **Not Allowed:** `features` importing directly from `app`<br/>
+### `fsd/forbidden-imports`
 
 ```js
-// ❌ Incorrect (feature importing from app)
-import { config } from '../../app/config';
+// features/auth/model/service.ts
 
-// ✅ Correct (feature importing from entities/shared)
-import { getUser } from '../../entities/user';
-import { formatCurrency } from '../../shared/utils';
-```
-
-<br/>
-
-### 2️⃣ fsd/no-relative-imports
-
-Disallows relative imports across different slices or layers. <br/>
-✅ Allowed: Using project-defined aliases or relative imports within same slice <br/>
-❌ Not Allowed: Relative imports between different slices <br/>
-
-```javascript
-// ❌ Incorrect (relative import across different slices)
-import { fetchUser } from '../another-slice/model/api';
-
-// ✅ Correct (relative import within the same slice)
-import { fetchData } from '../model/api';
-
-// ✅ Correct (alias import across slices or layers)
+// ✅ allowed
+import { getUser } from '@entities/user';
 import { Button } from '@shared/ui/Button';
-// Also supports @/shared format
-import { Button } from '@/shared/ui/Button';
+
+// ❌ forbidden
+import { LoginPage } from '@pages/login';
 ```
 
-#### Available options:
+### `fsd/no-relative-imports`
 
-```javascript
-// In your eslint.config.js:
-'fsd/no-relative-imports': ['error', {
-  // Allow relative imports within the same slice (enabled by default)
-  allowSameSlice: true,
+```js
+// features/auth/ui/LoginForm.tsx
 
-  // Allow type-only imports to use relative paths (disabled by default)
-  allowTypeImports: false,
+// ✅ same-slice relative import
+import { validateCredentials } from '../lib/validation';
 
-  // Patterns for test files that can ignore this rule
-  testFilesPatterns: ['\\.test\\.', '\\.spec\\.'],
+// ❌ cross-layer relative import
+import { store } from '../../../app/store';
 
-  // Patterns for imports to ignore
-  ignoreImportPatterns: []
-}]
+// ✅ cross-layer alias import
+import { store } from '@app/store';
 ```
 
-<br/>
+### `fsd/no-public-api-sidestep`
 
-### 3️⃣ fsd/no-public-api-sidestep
+```js
+// ✅ public API import
+import { authModel } from '@features/auth';
 
-Prevents direct imports from internal modules of features, widgets, or entities. <br/>
-✅ Allowed: Importing from index.ts (public API) or segment level <br/>
-❌ Not Allowed: Importing internal files within segments <br/>
+// ✅ segment-level public import
+import { userModel } from '@entities/user/model';
 
-```javascript
-// ✅ Correct (importing via public API)
-import { authSlice } from '../../features/auth';
-import { userModel } from '@entities/user/model';  // Segment level is allowed
-
-// ❌ Incorrect (direct internal import)
-import { authSlice } from '../../features/auth/slice.ts';
-import { userSlice } from '@entities/user/model/slice';  // Internal file not allowed
+// ❌ deep internal file import
+import { authSlice } from '@features/auth/model/slice';
 ```
 
-**Note:** Any segment name is allowed (not limited to model/ui/api/lib). This provides flexibility for teams to define their own segment structure.
+### `fsd/no-cross-slice-dependency`
 
-<br/>
+```js
+// features/auth/model/service.ts
 
-### 4️⃣ fsd/no-cross-slice-dependency
+// ❌ direct dependency on another feature slice
+import { profileService } from '@features/profile/model/service';
 
-Prevents direct dependencies between slices in the same layer (applies to all layers, not just features). <br/>
-✅ Allowed: Communication via lower layers <br/>
-❌ Not Allowed: Direct imports between different slices in the same layer <br/>
-
-```javascript
-// ❌ Incorrect (slice importing from another slice in the same layer)
-import { processPayment } from '../../features/payment';
-
-// ✅ Correct (using entities/shared as an intermediary)
-import { PaymentEntity } from '../../entities/payment';
-
-// ❌ Also incorrect (entities slice importing from another entities slice)
-import { Product } from '../../entities/product';
-// This rule now applies to all layers, not just features!
+// ✅ dependency through lower layer
+import { getProfile } from '@entities/profile';
 ```
 
-<br/>
+### `fsd/no-ui-in-business-logic`
 
-### 5️⃣ fsd/no-ui-in-business-logic
+```js
+// entities/user/model/user.ts
 
-Prevents UI imports inside business logic layers (e.g., entities). <br/>
-✅ Allowed: UI should only be used inside widgets or pages <br/>
-❌ Not Allowed: entities importing UI components <br/>
+// ❌ business logic importing UI
+import { Header } from '@widgets/header';
 
-```javascript
-// ❌ Incorrect (entity importing widget)
-import { ProfileCard } from '../../widgets/ProfileCard';
-
-// ✅ Correct (widget using entity data)
-import { getUser } from '../../entities/user';
+// ✅ business logic importing data or helpers
+import { formatDate } from '@shared/lib/date';
 ```
 
-<br/>
+### `fsd/no-global-store-imports`
 
-### 6️⃣ fsd/no-global-store-imports
+```js
+// ❌ direct store import
+import { store } from '@app/store';
 
-Forbids direct imports of global state (store). <br/>
-✅ Allowed: Using useStore or useSelector <br/>
-❌ Not Allowed: Direct imports of the store <br/>
-
-```javascript
-// ❌ Incorrect (direct import of store)
-import { store } from '../../app/store';
-
-// ✅ Correct (using hooks)
-import { useStore } from 'zustand';
+// ✅ use app wiring, hooks, or selectors instead
 import { useSelector } from 'react-redux';
 ```
 
-<br/>
+### `fsd/ordered-imports`
 
-### 7️⃣ fsd/ordered-imports
+```js
+// Before
+import { processPayment } from '@features/payment';
+import { getUser } from '@entities/user';
+import { formatCurrency } from '@shared/lib/currency';
+import { useStore } from '@app/store';
 
-Enforces import grouping by layer. <br/>
-✅ Allowed: Grouping imports by layer <br/>
-❌ Not Allowed: Mixed import order <br/>
+// After --fix
+import { useStore } from '@app/store';
 
-```javascript
-// ❌ Incorrect (random import order)
-import { processPayment } from '../features/payment';
-import { getUser } from '../entities/user';
-import { formatCurrency } from '../shared/utils';
-import { loginUser } from '../features/auth';
-import { Header } from '../widgets/Header';
-import { useStore } from '../app/store';
+import { processPayment } from '@features/payment';
 
-// ✅ Correct (layered grouping)
-import { useStore } from '../app/store'; // App
+import { getUser } from '@entities/user';
 
-import { loginUser } from '../features/auth'; // Features
-import { processPayment } from '../features/payment';
-
-import { getUser } from '../entities/user'; // Entities
-
-import { formatCurrency } from '../shared/utils'; // Shared
-
-import { Header } from '../widgets/Header'; // Widgets
+import { formatCurrency } from '@shared/lib/currency';
 ```
-
-> 💡 Tip: Use `npx eslint --fix` to automatically reorder imports according to FSD layers.
 
 ---
 
-## 🛠 Auto-fix Support
+## Auto-fix Support
 
-Certain rules in `eslint-plugin-fsd-lint` support **automatic fixing** using ESLint's `--fix` option. <br/>  
-This allows developers to quickly resolve violations **without manual code adjustments**.
-
-### ✅ Rules Supporting Auto-fix
-
-The following rules can be automatically fixed:
-
-| Rule                    | Description                                                              |
-| ----------------------- | ------------------------------------------------------------------------ |
-| **fsd/ordered-imports** | Automatically sorts imports based on Feature-Sliced Design (FSD) layers. |
-
-### 🔧 Using `--fix` in ESLint
-
-To apply automatic fixes to your project, simply run:
-
-```shell
-npx eslint --fix your-file.js
-```
-
-Or, to fix all files in your project:
+`fsd/ordered-imports` supports ESLint auto-fix.
 
 ```shell
 npx eslint --fix .
 ```
 
-### 📌 Example Before & After Auto-fix
-
-❌ Before (fsd/ordered-imports violation)
-
-```javascript
-import { processPayment } from '../features/payment';
-import { getUser } from '../entities/user';
-import { formatCurrency } from '../shared/utils';
-import { loginUser } from '../features/auth';
-import { Header } from '../widgets/Header';
-import { useStore } from '../app/store';
-```
-
-<br/>
-
-✅ After (npx eslint --fix applied)
-
-```javascript
-import { useStore } from '../app/store'; // App
-
-import { loginUser } from '../features/auth'; // Features
-import { processPayment } from '../features/payment';
-
-import { getUser } from '../entities/user'; // Entities
-
-import { formatCurrency } from '../shared/utils'; // Shared
-
-import { Header } from '../widgets/Header'; // Widgets
-```
-
-> 💡 Tip: `fsd/ordered-imports` ensures a clean and structured import order based on FSD layers.
-
 ---
 
-## 🆕 New Features
+## Troubleshooting
 
-### 1. Cross-Platform Compatibility
+### My app lives inside a monorepo package
 
-The plugin now works seamlessly on both Windows and Unix-based systems by normalizing file paths internally.
-
-### 2. Flexible Folder Naming Patterns
-
-You can now use numbered prefixes or other naming conventions for your folders:
+Use `rootPath` on rules that rely on the current file path:
 
 ```js
-// Configure folder pattern support
-"fsd/forbidden-imports": ["error", {
+'fsd/forbidden-imports': ['error', { rootPath: '/packages/web/src/' }],
+'fsd/no-cross-slice-dependency': ['error', { rootPath: '/packages/web/src/' }],
+'fsd/no-ui-in-business-logic': ['error', { rootPath: '/packages/web/src/' }],
+```
+
+### I use `@/shared/...` instead of `@shared/...`
+
+```js
+'fsd/forbidden-imports': ['error', {
+  alias: {
+    value: '@',
+    withSlash: true,
+  },
+}]
+```
+
+### I use numbered layer directories
+
+```js
+'fsd/forbidden-imports': ['error', {
   folderPattern: {
     enabled: true,
-    regex: "^(\\d+_)?(.*)",
-    extractionGroup: 2
-  }
+    regex: '^(\\d+_)?(.*)',
+    extractionGroup: 2,
+  },
 }]
 ```
-
-This allows using structures like:
-
-```
-src/
-  1_app/
-  2_pages/
-  3_widgets/
-  4_features/
-  5_entities/
-  6_shared/
-```
-
-### 3. Multiple Alias Format Support
-
-The plugin now supports both `@shared` and `@/shared` import styles:
-
-```js
-// Configure alias format
-"fsd/forbidden-imports": ["error", {
-  alias: {
-    value: "@",
-    withSlash: false  // Use true for @/shared format
-  }
-}]
-```
-
-### 4. Enhanced Cross-Slice Dependency Rule
-
-The `no-cross-slice-dependency` rule now applies to all layers by default, not just features:
-
-```js
-// Restrict to features layer only (legacy behavior)
-"fsd/no-cross-slice-dependency": ["error", {
-  featuresOnly: true
-}]
-```
-
-### 5. Pre-defined Configuration Profiles
-
-Multiple configuration presets are now available:
-
-- `recommended` - Standard recommended settings
-- `strict` - Maximum enforcement
-- `base` - Less strict settings for easy adoption
-
-### 6. Comprehensive Test Coverage
-
-The plugin now includes extensive test cases for all rules, covering:
-
-- Basic import scenarios
-- Edge cases and complex patterns
-- Path variations (Windows, Unix, mixed)
-- Custom configurations
-- Real-world usage examples
-
-### Path Alias Support
-
-The plugin now properly handles various path alias formats:
-
-```javascript
-// Both formats are supported
-import { UserCard } from '@entities/user';
-import { UserCard } from '@/entities/user';
-```
-
-### Dynamic Import Support
-
-All rules now support dynamic imports:
-
-```javascript
-// Valid dynamic imports
-const UserCard = await import('@entities/user');
-const { UserCard } = await import('@entities/user');
-
-// Invalid dynamic imports (will be caught by rules)
-const UserCard = await import('@entities/user/ui');
-```
-
-### Comprehensive Test Coverage
-
-All rules are now thoroughly tested with:
-
-- Basic import scenarios
-- Edge cases and complex patterns
-- Path variations (Windows, Unix, mixed)
-- Custom configurations
-- Real-world usage examples
-- Path alias formats
-- Dynamic import patterns
 
 ---
 
-## 🤝 Contributing
+## Development
 
-We welcome contributions to improve `eslint-plugin-fsd-lint`! <br/>  
-If you have an idea for a new rule or an improvement, feel free to submit a Pull Request.
-
-Check out our [contribution guide](CONTRIBUTING.md).
+```shell
+npm run lint
+npm test
+```
 
 ---
 
-## 📝 License
+## Contributing
 
-This project is licensed under the MIT License. <br/>
-See the [LICENSE](LICENSE.md) file for details.
-
-<br/>
+Issues and pull requests are welcome. Please include tests and documentation updates for any new rule or behavior change.
