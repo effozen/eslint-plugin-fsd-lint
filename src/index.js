@@ -21,56 +21,57 @@ export const rules = {
   'ordered-imports': orderedImports
 };
 
+const plugin = {
+  rules
+};
+
 // Export configurations
 export const configs = {
-  // Recommended configuration
   recommended: {
     plugins: {
-      'fsd-lint': {
-        rules: {
-          'fsd-lint/forbidden-imports': 'error',
-          'fsd-lint/no-cross-slice-dependency': 'error',
-          'fsd-lint/no-global-store-imports': 'error',
-          'fsd-lint/no-public-api-sidestep': 'error',
-          'fsd-lint/no-relative-imports': 'error',
-          'fsd-lint/no-ui-in-business-logic': 'error',
-          'fsd-lint/ordered-imports': 'warn'
-        }
-      }
+      fsd: plugin
+    },
+    rules: {
+      'fsd/forbidden-imports': 'error',
+      'fsd/no-cross-slice-dependency': 'error',
+      'fsd/no-global-store-imports': 'error',
+      'fsd/no-public-api-sidestep': 'error',
+      'fsd/no-relative-imports': 'error',
+      'fsd/no-ui-in-business-logic': 'error',
+      'fsd/ordered-imports': 'warn'
     }
   },
-
-  // Strict configuration
   strict: {
-    plugins: ['fsd-lint'],
+    plugins: {
+      fsd: plugin
+    },
     rules: {
-      'fsd-lint/forbidden-imports': 'error',
-      'fsd-lint/no-cross-slice-dependency': 'error',
-      'fsd-lint/no-global-store-imports': 'error',
-      'fsd-lint/no-public-api-sidestep': 'error',
-      'fsd-lint/no-relative-imports': 'error',
-      'fsd-lint/no-ui-in-business-logic': 'error',
-      'fsd-lint/ordered-imports': 'error'
+      'fsd/forbidden-imports': 'error',
+      'fsd/no-cross-slice-dependency': 'error',
+      'fsd/no-global-store-imports': 'error',
+      'fsd/no-public-api-sidestep': 'error',
+      'fsd/no-relative-imports': 'error',
+      'fsd/no-ui-in-business-logic': 'error',
+      'fsd/ordered-imports': 'error'
     }
   },
 
-  // Base configuration (less strict)
   base: {
-    plugins: ['fsd-lint'],
+    plugins: {
+      fsd: plugin
+    },
     rules: {
-      'fsd-lint/forbidden-imports': 'warn',
-      'fsd-lint/no-cross-slice-dependency': 'warn',
-      'fsd-lint/no-global-store-imports': 'error',
-      'fsd-lint/no-public-api-sidestep': 'warn',
-      'fsd-lint/no-relative-imports': 'off',
-      'fsd-lint/no-ui-in-business-logic': 'error',
-      'fsd-lint/ordered-imports': 'warn'
+      'fsd/forbidden-imports': 'warn',
+      'fsd/no-cross-slice-dependency': 'warn',
+      'fsd/no-global-store-imports': 'error',
+      'fsd/no-public-api-sidestep': 'warn',
+      'fsd/no-relative-imports': 'off',
+      'fsd/no-ui-in-business-logic': 'error',
+      'fsd/ordered-imports': 'warn'
     }
   }
 };
 
-// Default export for ESM
-export default {
-  rules,
-  configs
-};
+plugin.configs = configs;
+
+export default plugin;

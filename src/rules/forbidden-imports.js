@@ -20,8 +20,8 @@ export default {
       {
         type: "object",
         properties: {
+          rootPath: { type: "string" },
           alias: {
-            rootPath: { type: "string" },
             oneOf: [
               { type: "string" },
               {

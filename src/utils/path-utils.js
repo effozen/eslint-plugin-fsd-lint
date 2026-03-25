@@ -148,7 +148,7 @@ export function extractLayerFromPath(filePath, config) {
  * @return {string|null} - Extracted slice name or null
  */
 export function extractSliceFromPath(filePath, config) {
-  const relativePath = getRelativePathFromRoot(filePath);
+  const relativePath = getRelativePathFromRoot(filePath, config?.rootPath);
   if (!relativePath) return null;
 
   const segments = relativePath.split('/');

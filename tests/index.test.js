@@ -10,3 +10,5 @@ import './rules/no-public-api-sidestep.js';
 import './rules/no-relative-imports.js';
 import './rules/no-ui-in-business-logic.js';
 import './rules/ordered-imports.js';
+import './configs.test.js';
+import './root-path.test.js';
