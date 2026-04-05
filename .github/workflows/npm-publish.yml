@@ -5,6 +5,9 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     name: Publish NPM Package
@@ -12,12 +15,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
-          node-version: 18
+          node-version: 24
           registry-url: "https://registry.npmjs.org/"
           cache: "npm"
 
@@ -26,13 +29,43 @@ jobs:
 
       - name: Run tests
         run: npm test
-        continue-on-error: true  # 테스트 스크립트가 없는 경우 무시 가능
 
       - name: Build package (if needed)
-        run: npm run build
-        continue-on-error: true  # 빌드 스크립트가 없는 경우 무시 가능
+        run: |
+          if node -e "const pkg = require('./package.json'); process.exit(pkg.scripts?.build ? 0 : 1)"; then
+            npm run build
+          else
+            echo "No build script defined. Skipping."
+          fi
+
+      - name: Validate NPM authentication
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret is missing."
+            exit 1
+          fi
+
+          npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check if version already exists
+        id: version_check
+        run: |
+          PACKAGE_NAME=$(npm pkg get name | tr -d '"')
+          PACKAGE_VERSION=$(npm pkg get version | tr -d '"')
+
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${PACKAGE_VERSION} is already published. Skipping."
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to NPM
+        if: steps.version_check.outputs.already_published != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
