@@ -48,6 +48,28 @@ describe("preset configs", () => {
     expect(messages[0].severity).toBe(2);
   });
 
+  it("strict preset requires slice-level public API imports", async () => {
+    const messages = await lintWithConfig(
+      fsdPlugin.configs.strict,
+      'import { userModel } from "@entities/user/model";',
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].ruleId).toBe("fsd/no-public-api-sidestep");
+    expect(messages[0].severity).toBe(2);
+  });
+
+  it("strict preset enforces public API imports for shared", async () => {
+    const messages = await lintWithConfig(
+      fsdPlugin.configs.strict,
+      'import { Button } from "@shared/ui/Button";',
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].ruleId).toBe("fsd/no-public-api-sidestep");
+    expect(messages[0].severity).toBe(2);
+  });
+
   it("base preset downgrades forbidden-imports to a warning", async () => {
     const messages = await lintWithConfig(
       fsdPlugin.configs.base,

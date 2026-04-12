@@ -63,7 +63,9 @@ export default [fsdPlugin.configs.recommended];
 
 ### Strict Preset
 
-Use `strict` when you want all architectural checks to fail the build.
+Use `strict` when you want all architectural checks to fail the build. This
+preset also requires slice-level public API imports and applies public API
+enforcement to `shared`.
 
 ```js
 import fsdPlugin from "eslint-plugin-fsd-lint";

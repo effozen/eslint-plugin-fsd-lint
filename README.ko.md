@@ -128,7 +128,7 @@ export default [
   // 표준 권장 구성
   fsdPlugin.configs.recommended,
 
-  // 엄격한 구성 (모든 규칙이 error)
+  // 엄격한 구성 (모든 규칙이 error, slice-level Public API와 shared Public API 강제)
   // fsdPlugin.configs.strict,
 
   // 기본 구성 (덜 엄격함)
@@ -644,7 +644,7 @@ src/
 이제 여러 구성 프리셋을 사용할 수 있습니다:
 
 - `recommended` - 표준 권장 설정
-- `strict` - 최대 강제 수준
+- `strict` - 최대 강제 수준, slice-level Public API와 shared Public API 강제
 - `base` - 쉬운 도입을 위한 덜 엄격한 설정
 
 ### 6. 포괄적인 테스트 커버리지
