@@ -417,12 +417,18 @@ For stricter projects, segment-level public API imports can be disabled and the
 `shared` layer can be included in public API enforcement:
 
 ```js
-"fsd/no-public-api-sidestep": [
-  "error",
+export default [
   {
-    publicApi: {
-      allowSegmentImports: false,
-      enforceShared: true,
+    rules: {
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          publicApi: {
+            allowSegmentImports: false,
+            enforceShared: true,
+          },
+        },
+      ],
     },
   },
 ];
