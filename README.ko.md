@@ -418,7 +418,7 @@ import { Button } from "@/shared/ui/Button";
 ### 3️⃣ fsd/no-public-api-sidestep
 
 features, widgets, entities의 내부 모듈을 직접 import하지 못하도록 합니다.  
-✅ 허용: index.ts(공개 API) 또는 세그먼트 레벨을 통한 import  
+✅ 기본 허용: index.ts(공개 API) 또는 세그먼트 레벨을 통한 import  
 ❌ 금지: 세그먼트 내부 파일에 직접 접근
 
 ```javascript
@@ -714,6 +714,21 @@ const { UserCard } = await import("@entities/user");
 
 // ❌ 유효하지 않음: public API를 우회하는 동적 import
 const UserCard = await import("@entities/user/ui/UserCard");
+```
+
+더 엄격한 프로젝트에서는 세그먼트 레벨 Public API import를 막고 `shared`
+레이어에도 Public API 사용을 강제할 수 있습니다.
+
+```javascript
+"fsd/no-public-api-sidestep": [
+  "error",
+  {
+    publicApi: {
+      allowSegmentImports: false,
+      enforceShared: true,
+    },
+  },
+];
 ```
 
 ---

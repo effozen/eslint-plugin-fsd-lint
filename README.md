@@ -413,6 +413,21 @@ import { userModel } from "@entities/user/model";
 import { authSlice } from "@features/auth/model/slice";
 ```
 
+For stricter projects, segment-level public API imports can be disabled and the
+`shared` layer can be included in public API enforcement:
+
+```js
+"fsd/no-public-api-sidestep": [
+  "error",
+  {
+    publicApi: {
+      allowSegmentImports: false,
+      enforceShared: true,
+    },
+  },
+];
+```
+
 ### `fsd/no-cross-slice-dependency`
 
 ```js
