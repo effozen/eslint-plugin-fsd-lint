@@ -720,12 +720,18 @@ const UserCard = await import("@entities/user/ui/UserCard");
 레이어에도 Public API 사용을 강제할 수 있습니다.
 
 ```javascript
-"fsd/no-public-api-sidestep": [
-  "error",
+export default [
   {
-    publicApi: {
-      allowSegmentImports: false,
-      enforceShared: true,
+    rules: {
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          publicApi: {
+            allowSegmentImports: false,
+            enforceShared: true,
+          },
+        },
+      ],
     },
   },
 ];
