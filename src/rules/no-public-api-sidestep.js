@@ -5,6 +5,8 @@
 import { mergeConfig } from "../utils/config-utils.js";
 import {
   extractLayerFromImportPath,
+  getImportPathWithoutAlias,
+  isRelativePath,
   isTestFile,
   normalizePath,
 } from "../utils/path-utils.js";
@@ -87,6 +89,16 @@ export default {
                 type: "array",
                 items: { type: "string" },
               },
+              allowSegmentImports: {
+                type: "boolean",
+                description:
+                  "Allow imports from segment-level public API entry points such as @entities/user/model",
+              },
+              enforceShared: {
+                type: "boolean",
+                description:
+                  "Also enforce public API imports for the shared layer",
+              },
             },
             additionalProperties: false,
           },
@@ -123,13 +135,18 @@ export default {
     });
 
     // Layers that require public API
-    const restrictedLayers = Array.isArray(options.layers)
+    const restrictedLayerList = Array.isArray(options.layers)
       ? options.layers
       : config.publicApi?.enforceForLayers || [
           "features",
           "entities",
           "widgets",
         ];
+    const restrictedLayers = new Set(restrictedLayerList);
+
+    if (config.publicApi?.enforceShared) {
+      restrictedLayers.add("shared");
+    }
 
     // Files that are considered public API
     const publicApiFiles = options.publicApiFiles ||
@@ -143,164 +160,156 @@ export default {
     // Allow type imports if configured
     const allowTypeImports = options.allowTypeImports || false;
 
+    const allowSegmentImports = config.publicApi?.allowSegmentImports !== false;
+
+    function isPublicApiFileName(segment) {
+      return publicApiFiles.some((apiFile) => {
+        const fileName = normalizePath(apiFile).split("/").pop();
+        const fileNameWithoutExtension = fileName.replace(/\.[^.]+$/, "");
+
+        return segment === fileName || segment === fileNameWithoutExtension;
+      });
+    }
+
+    function isAllowedSlicePublicApiImport(segments) {
+      // @features/auth
+      if (segments.length === 2) {
+        return true;
+      }
+
+      // @features/auth/index or @features/auth/index.ts
+      if (segments.length === 3 && isPublicApiFileName(segments[2])) {
+        return true;
+      }
+
+      if (!allowSegmentImports) {
+        return false;
+      }
+
+      // @features/auth/model
+      if (segments.length === 3) {
+        return true;
+      }
+
+      // Preserve existing behavior where any configured index file is treated
+      // as a public API entry point.
+      return isPublicApiFileName(segments[segments.length - 1]);
+    }
+
+    function isAllowedSharedPublicApiImport(segments) {
+      // @shared
+      if (segments.length === 1) {
+        return true;
+      }
+
+      // @shared/index or @shared/index.ts
+      if (segments.length === 2 && isPublicApiFileName(segments[1])) {
+        return true;
+      }
+
+      if (!allowSegmentImports) {
+        return false;
+      }
+
+      // @shared/ui
+      if (segments.length === 2) {
+        return true;
+      }
+
+      // Preserve existing behavior for explicit index public API files.
+      return isPublicApiFileName(segments[segments.length - 1]);
+    }
+
+    function isAllowedPublicApiImport(importPath, importLayer) {
+      const pathWithoutAlias = getImportPathWithoutAlias(importPath, config);
+
+      if (!pathWithoutAlias) {
+        return false;
+      }
+
+      const segments = pathWithoutAlias.split("/").filter(Boolean);
+      if (segments.length === 0) {
+        return false;
+      }
+
+      if (importLayer === "shared") {
+        return isAllowedSharedPublicApiImport(segments);
+      }
+
+      return isAllowedSlicePublicApiImport(segments);
+    }
+
+    function checkImport(node, importPath, filePath, { isTypeImport }) {
+      if (typeof importPath !== "string") {
+        return;
+      }
+
+      // Skip test files
+      if (isTestFile(filePath, config.testFilesPatterns)) {
+        return;
+      }
+
+      // Check for ignored patterns
+      const isIgnored = config.ignoreImportPatterns.some((pattern) => {
+        const regex = new RegExp(pattern);
+        return regex.test(importPath);
+      });
+
+      if (isIgnored) {
+        return;
+      }
+
+      // Skip relative imports
+      if (isRelativePath(importPath)) {
+        return;
+      }
+
+      // Skip type-only imports if configured
+      if (allowTypeImports && isTypeImport) {
+        return;
+      }
+
+      // Get layer from import path
+      const importLayer = extractLayerFromImportPath(importPath, config);
+
+      // Skip if not importing from a restricted layer
+      if (!importLayer || !restrictedLayers.has(importLayer)) {
+        return;
+      }
+
+      if (isAllowedPublicApiImport(importPath, importLayer)) {
+        return;
+      }
+
+      context.report({
+        node,
+        messageId: "noDirectImport",
+        data: {
+          importPath,
+        },
+      });
+    }
+
     return {
       ImportDeclaration(node) {
-        const filePath = normalizePath(context.filename);
-        const importPath = node.source.value;
-
-        // Skip test files
-        if (isTestFile(filePath, config.testFilesPatterns)) {
-          return;
-        }
-
-        // Check for ignored patterns
-        const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-          const regex = new RegExp(pattern);
-          return regex.test(importPath);
-        });
-
-        if (isIgnored) {
-          return;
-        }
-
-        // Skip relative imports
-        if (importPath.startsWith(".")) {
-          return;
-        }
-
-        // Skip type-only imports if configured
-        if (allowTypeImports && node.importKind === "type") {
-          return;
-        }
-
-        // Get layer from import path
-        const importLayer = extractLayerFromImportPath(importPath, config);
-
-        // Skip if not importing from a restricted layer
-        if (!importLayer || !restrictedLayers.includes(importLayer)) {
-          return;
-        }
-
-        // Check if it's importing directly from a public API file
-        const normalizedImportPath = normalizePath(importPath);
-        const isPublicApiImport = publicApiFiles.some((apiFile) => {
-          return (
-            normalizedImportPath.endsWith(`/${apiFile}`) ||
-            normalizedImportPath.endsWith(`/${apiFile.replace(".ts", "")}`)
-          );
-        });
-
-        // Also check if it's importing from just the slice (without specific file)
-        // Example: @features/auth vs @features/auth/model/slice
-        const pathParts = normalizedImportPath.split("/");
-        const layerIndex = pathParts.findIndex((part) => {
-          const normalizedPart = normalizePath(part);
-          // Check if the part contains the layer (e.g., @entities contains entities)
-          return (
-            normalizedPart === importLayer ||
-            normalizedPart.includes(importLayer) ||
-            config.layers[importLayer]?.pattern === normalizedPart
-          );
-        });
-
-        // If import only specifies layer and slice, it's considered a public API import
-        const isSliceRootImport =
-          layerIndex >= 0 && pathParts.length === layerIndex + 2;
-
-        // Check if it's importing from a segment level (e.g., @entities/user/model, @entities/user/ui, @entities/user/anySegmentName)
-        // Any segment name is allowed in FSD architecture
-        const isSegmentImport =
-          layerIndex >= 0 && pathParts.length === layerIndex + 3;
-
-        // If either a public API file, slice root, or segment root, it's valid
-        if (isPublicApiImport || isSliceRootImport || isSegmentImport) {
-          return;
-        }
-
-        context.report({
-          node,
-          messageId: "noDirectImport",
-          data: {
-            importPath,
-          },
+        checkImport(node, node.source.value, normalizePath(context.filename), {
+          isTypeImport: node.importKind === "type",
         });
       },
       CallExpression(node) {
-        // Handle dynamic imports
         if (node.callee.type === "Import") {
-          const importPath = node.arguments[0].value;
-
-          // Skip relative imports
-          if (importPath.startsWith(".")) {
-            return;
-          }
-
-          // Skip test files
-          if (isTestFile(context.filename, config.testFilesPatterns)) {
-            return;
-          }
-
-          // Check for ignored patterns
-          const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-            const regex = new RegExp(pattern);
-            return regex.test(importPath);
-          });
-
-          if (isIgnored) {
-            return;
-          }
-
-          // Get layer from import path
-          const importLayer = extractLayerFromImportPath(importPath, config);
-
-          // Skip if not importing from a restricted layer
-          if (!importLayer || !restrictedLayers.includes(importLayer)) {
-            return;
-          }
-
-          // Check if it's importing directly from a public API file
-          const normalizedImportPath = normalizePath(importPath);
-          const isPublicApiImport = publicApiFiles.some((apiFile) => {
-            return (
-              normalizedImportPath.endsWith(`/${apiFile}`) ||
-              normalizedImportPath.endsWith(`/${apiFile.replace(".ts", "")}`)
-            );
-          });
-
-          // Also check if it's importing from just the slice (without specific file)
-          const pathParts = normalizedImportPath.split("/");
-          const layerIndex = pathParts.findIndex((part) => {
-            const normalizedPart = normalizePath(part);
-            // Check if the part contains the layer (e.g., @entities contains entities)
-            return (
-              normalizedPart === importLayer ||
-              normalizedPart.includes(importLayer) ||
-              config.layers[importLayer]?.pattern === normalizedPart
-            );
-          });
-
-          // If import only specifies layer and slice, it's considered a public API import
-          const isSliceRootImport =
-            layerIndex >= 0 && pathParts.length === layerIndex + 2;
-
-          // Check if it's importing from a segment level (e.g., @entities/user/model, @entities/user/ui, @entities/user/anySegmentName)
-          // Any segment name is allowed in FSD architecture
-          const isSegmentImport =
-            layerIndex >= 0 && pathParts.length === layerIndex + 3;
-
-          // If either a public API file, slice root, or segment root, it's valid
-          if (isPublicApiImport || isSliceRootImport || isSegmentImport) {
-            return;
-          }
-
-          context.report({
+          checkImport(
             node,
-            messageId: "noDirectImport",
-            data: {
-              importPath,
-            },
-          });
+            node.arguments[0]?.value,
+            normalizePath(context.filename),
+            { isTypeImport: false },
+          );
         }
+      },
+      ImportExpression(node) {
+        checkImport(node, node.source?.value, normalizePath(context.filename), {
+          isTypeImport: false,
+        });
       },
     };
   },
