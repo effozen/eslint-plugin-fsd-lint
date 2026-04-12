@@ -128,13 +128,87 @@ export default [
   // 표준 권장 구성
   fsdPlugin.configs.recommended,
 
-  // 엄격한 구성 (모든 규칙이 error)
+  // 엄격한 구성 (모든 규칙이 error, slice-level Public API와 shared Public API 강제)
   // fsdPlugin.configs.strict,
 
   // 기본 구성 (덜 엄격함)
   // fsdPlugin.configs.base,
 ];
 ```
+
+<details>
+<summary>recommended 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "error",
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>strict 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": [
+      "error",
+      {
+        publicApi: {
+          allowSegmentImports: false,
+          enforceShared: true,
+        },
+      },
+    ],
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "error",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>base 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "warn",
+    "fsd/no-cross-slice-dependency": "warn",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "warn",
+    "fsd/no-relative-imports": "off",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
 
 ### Next.js App Router와 커스텀 레이어 폴더명
 
@@ -418,7 +492,7 @@ import { Button } from "@/shared/ui/Button";
 ### 3️⃣ fsd/no-public-api-sidestep
 
 features, widgets, entities의 내부 모듈을 직접 import하지 못하도록 합니다.  
-✅ 허용: index.ts(공개 API) 또는 세그먼트 레벨을 통한 import  
+✅ 기본 허용: index.ts(공개 API) 또는 세그먼트 레벨을 통한 import  
 ❌ 금지: 세그먼트 내부 파일에 직접 접근
 
 ```javascript
@@ -644,7 +718,7 @@ src/
 이제 여러 구성 프리셋을 사용할 수 있습니다:
 
 - `recommended` - 표준 권장 설정
-- `strict` - 최대 강제 수준
+- `strict` - 최대 강제 수준, slice-level Public API와 shared Public API 강제
 - `base` - 쉬운 도입을 위한 덜 엄격한 설정
 
 ### 6. 포괄적인 테스트 커버리지
@@ -714,6 +788,27 @@ const { UserCard } = await import("@entities/user");
 
 // ❌ 유효하지 않음: public API를 우회하는 동적 import
 const UserCard = await import("@entities/user/ui/UserCard");
+```
+
+더 엄격한 프로젝트에서는 세그먼트 레벨 Public API import를 막고 `shared`
+레이어에도 Public API 사용을 강제할 수 있습니다.
+
+```javascript
+export default [
+  {
+    rules: {
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          publicApi: {
+            allowSegmentImports: false,
+            enforceShared: true,
+          },
+        },
+      ],
+    },
+  },
+];
 ```
 
 ---

@@ -49,7 +49,15 @@ export const configs = {
       "fsd/forbidden-imports": "error",
       "fsd/no-cross-slice-dependency": "error",
       "fsd/no-global-store-imports": "error",
-      "fsd/no-public-api-sidestep": "error",
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          publicApi: {
+            allowSegmentImports: false,
+            enforceShared: true,
+          },
+        },
+      ],
       "fsd/no-relative-imports": "error",
       "fsd/no-ui-in-business-logic": "error",
       "fsd/ordered-imports": "error",

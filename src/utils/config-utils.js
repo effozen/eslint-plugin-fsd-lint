@@ -70,6 +70,8 @@ export const defaultConfig = {
   publicApi: {
     enforceForLayers: ["features", "entities", "widgets"],
     fileNames: ["index.ts", "index.tsx", "index.js", "index.jsx"],
+    allowSegmentImports: true,
+    enforceShared: false,
   },
 
   // Exception handling settings

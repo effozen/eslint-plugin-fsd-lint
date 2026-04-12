@@ -63,7 +63,9 @@ export default [fsdPlugin.configs.recommended];
 
 ### Strict Preset
 
-Use `strict` when you want all architectural checks to fail the build.
+Use `strict` when you want all architectural checks to fail the build. This
+preset also requires slice-level public API imports and applies public API
+enforcement to `shared`.
 
 ```js
 import fsdPlugin from "eslint-plugin-fsd-lint";
@@ -80,6 +82,80 @@ import fsdPlugin from "eslint-plugin-fsd-lint";
 
 export default [fsdPlugin.configs.base];
 ```
+
+<details>
+<summary>Recommended preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "error",
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>Strict preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": [
+      "error",
+      {
+        publicApi: {
+          allowSegmentImports: false,
+          enforceShared: true,
+        },
+      },
+    ],
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "error",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>Base preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "warn",
+    "fsd/no-cross-slice-dependency": "warn",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "warn",
+    "fsd/no-relative-imports": "off",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
 
 ### Manual Configuration
 
@@ -411,6 +487,27 @@ import { userModel } from "@entities/user/model";
 
 // ❌ deep internal file import
 import { authSlice } from "@features/auth/model/slice";
+```
+
+For stricter projects, segment-level public API imports can be disabled and the
+`shared` layer can be included in public API enforcement:
+
+```js
+export default [
+  {
+    rules: {
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          publicApi: {
+            allowSegmentImports: false,
+            enforceShared: true,
+          },
+        },
+      ],
+    },
+  },
+];
 ```
 
 ### `fsd/no-cross-slice-dependency`
