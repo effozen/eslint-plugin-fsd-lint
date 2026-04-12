@@ -83,6 +83,80 @@ import fsdPlugin from "eslint-plugin-fsd-lint";
 export default [fsdPlugin.configs.base];
 ```
 
+<details>
+<summary>Recommended preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "error",
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>Strict preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": [
+      "error",
+      {
+        publicApi: {
+          allowSegmentImports: false,
+          enforceShared: true,
+        },
+      },
+    ],
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "error",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>Base preset configuration</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "warn",
+    "fsd/no-cross-slice-dependency": "warn",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "warn",
+    "fsd/no-relative-imports": "off",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
 ### Manual Configuration
 
 Use manual configuration when you want fine-grained control over each rule.

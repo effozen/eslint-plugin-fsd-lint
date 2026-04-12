@@ -136,6 +136,80 @@ export default [
 ];
 ```
 
+<details>
+<summary>recommended 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "error",
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>strict 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "error",
+    "fsd/no-cross-slice-dependency": "error",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": [
+      "error",
+      {
+        publicApi: {
+          allowSegmentImports: false,
+          enforceShared: true,
+        },
+      },
+    ],
+    "fsd/no-relative-imports": "error",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "error",
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>base 프리셋 설정</summary>
+
+```js
+{
+  plugins: {
+    fsd: fsdPlugin,
+  },
+  rules: {
+    "fsd/forbidden-imports": "warn",
+    "fsd/no-cross-slice-dependency": "warn",
+    "fsd/no-global-store-imports": "error",
+    "fsd/no-public-api-sidestep": "warn",
+    "fsd/no-relative-imports": "off",
+    "fsd/no-ui-in-business-logic": "error",
+    "fsd/ordered-imports": "warn",
+  },
+}
+```
+
+</details>
+
 ### Next.js App Router와 커스텀 레이어 폴더명
 
 Next.js App Router 프로젝트에서는 Next의 라우팅 파일을 `src/app`에 두고, 나머지 코드를 FSD 레이어로 구성할 수 있습니다.
