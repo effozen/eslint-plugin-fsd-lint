@@ -163,83 +163,59 @@ export default {
       return currentLayer === importLayer && currentSlice === importSlice;
     }
 
+    function checkImport(node, importPath, { isTypeImport }) {
+      if (typeof importPath !== "string") {
+        return;
+      }
+
+      if (!isRelativePath(importPath)) {
+        return;
+      }
+
+      if (isTestFile(context.filename, config.testFilesPatterns)) {
+        return;
+      }
+
+      const isIgnored = config.ignoreImportPatterns.some((pattern) => {
+        const regex = new RegExp(pattern);
+        return regex.test(importPath);
+      });
+
+      if (isIgnored) {
+        return;
+      }
+
+      if (allowTypeImports && isTypeImport) {
+        return;
+      }
+
+      if (allowSameSlice && isSameSlice(importPath, context.filename)) {
+        return;
+      }
+
+      context.report({
+        node,
+        messageId: "noRelativeImport",
+      });
+    }
+
     return {
       ImportDeclaration(node) {
-        const importPath = node.source.value;
-
-        // Skip if not a relative import
-        if (!isRelativePath(importPath)) {
-          return;
-        }
-
-        // Skip test files
-        if (isTestFile(context.filename, config.testFilesPatterns)) {
-          return;
-        }
-
-        // Check for ignored patterns
-        const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-          const regex = new RegExp(pattern);
-          return regex.test(importPath);
-        });
-
-        if (isIgnored) {
-          return;
-        }
-
-        // Skip type-only imports if configured
-        if (allowTypeImports && node.importKind === "type") {
-          return;
-        }
-
-        // Skip same slice imports if configured
-        if (allowSameSlice && isSameSlice(importPath, context.filename)) {
-          return;
-        }
-
-        context.report({
-          node,
-          messageId: "noRelativeImport",
+        checkImport(node, node.source.value, {
+          isTypeImport: node.importKind === "type",
         });
       },
       CallExpression(node) {
-        // Handle dynamic imports
         if (node.callee.type === "Import") {
-          const importPath = node.arguments[0].value;
-
-          // Skip if not a relative import
-          if (!isRelativePath(importPath)) {
-            return;
-          }
-
-          // Skip test files
-          if (isTestFile(context.filename, config.testFilesPatterns)) {
-            return;
-          }
-
-          // Check for ignored patterns
-          const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-            const regex = new RegExp(pattern);
-            return regex.test(importPath);
-          });
-
-          if (isIgnored) {
-            return;
-          }
-
-          // For dynamic imports, we can't check if it's a type import
-          // as that information is not available at parse time
-
-          // Skip same slice imports if configured
-          if (allowSameSlice && isSameSlice(importPath, context.filename)) {
-            return;
-          }
-
-          context.report({
-            node,
-            messageId: "noRelativeImport",
+          checkImport(node, node.arguments[0]?.value, {
+            isTypeImport: false,
           });
         }
+      },
+      ImportExpression(node) {
+        checkImport(node, node.source?.value, {
+          isTypeImport: false,
+        });
       },
     };
   },
