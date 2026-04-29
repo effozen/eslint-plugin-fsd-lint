@@ -5,6 +5,13 @@ import { describe, it } from "vitest";
 import { RuleTester } from "eslint";
 import tsParser from "@typescript-eslint/parser";
 
+// Wire RuleTester to vitest so each ruleTester.run case becomes a real
+// vitest test. Without this, RuleTester falls back to no-op handlers and
+// silently skips every assertion.
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+
 // ESLint RuleTester configuration
 export const ruleTester = new RuleTester({
   languageOptions: {
@@ -47,44 +54,16 @@ export function withOptions(testCase, options) {
 }
 
 /**
- * ESLint rule test wrapper function
+ * ESLint rule test wrapper. RuleTester registers a vitest test per case
+ * via the describe/it bindings above, so we hand it the full valid /
+ * invalid arrays and let it expand them.
  * @param {string} ruleName - Rule name
  * @param {Object} rule - ESLint rule object
  * @param {Object} tests - Test cases (valid and invalid arrays)
  */
 export function testRule(ruleName, rule, tests) {
-  describe(ruleName, () => {
-    it("valid cases", () => {
-      tests.valid.forEach((test, index) => {
-        const testDescription = test.description || `valid case #${index + 1}`;
-
-        try {
-          ruleTester.run(`${ruleName}_valid_${index}`, rule, {
-            valid: [normalizeTestCase(test)],
-            invalid: [],
-          });
-        } catch (error) {
-          console.error(`Test failed: ${testDescription}`);
-          throw error;
-        }
-      });
-    });
-
-    it("invalid cases", () => {
-      tests.invalid.forEach((test, index) => {
-        const testDescription =
-          test.description || `invalid case #${index + 1}`;
-
-        try {
-          ruleTester.run(`${ruleName}_invalid_${index}`, rule, {
-            valid: [],
-            invalid: [normalizeTestCase(test)],
-          });
-        } catch (error) {
-          console.error(`Test failed: ${testDescription}`);
-          throw error;
-        }
-      });
-    });
+  ruleTester.run(ruleName, rule, {
+    valid: tests.valid.map(normalizeTestCase),
+    invalid: tests.invalid.map(normalizeTestCase),
   });
 }
