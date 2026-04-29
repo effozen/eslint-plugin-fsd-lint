@@ -104,107 +104,73 @@ export default {
     const allowTypeImports = options.allowTypeImports || false;
 
     // Define UI and business logic layers
-    const uiLayers = new Set(options.uiLayers || ["ui", "widgets", "features"]);
+    const uiLayers = options.uiLayers || ["ui", "widgets", "features"];
     const businessLogicLayers = new Set(
       options.businessLogicLayers || ["model", "api", "lib"],
     );
 
+    function checkImport(node, importPath, { isTypeImport }) {
+      if (typeof importPath !== "string") {
+        return;
+      }
+
+      const filePath = normalizePath(context.filename);
+
+      if (isTestFile(filePath, config.testFilesPatterns)) {
+        return;
+      }
+
+      const isIgnored = config.ignoreImportPatterns.some((pattern) => {
+        const regex = new RegExp(pattern);
+        return regex.test(importPath);
+      });
+
+      if (isIgnored) {
+        return;
+      }
+
+      const fromLayer = extractLayerFromPath(filePath, config);
+      if (!fromLayer) {
+        return;
+      }
+
+      if (!businessLogicLayers.has(fromLayer)) {
+        return;
+      }
+
+      if (allowTypeImports && isTypeImport) {
+        return;
+      }
+
+      const isUiImport = uiLayers.some((layer) =>
+        importPath.includes(`/${layer}/`),
+      );
+
+      if (isUiImport) {
+        context.report({
+          node,
+          messageId: "noUiInBusinessLogic",
+        });
+      }
+    }
+
     return {
       ImportDeclaration(node) {
-        const filePath = normalizePath(context.filename);
-        const importPath = node.source.value;
-
-        // Skip test files
-        if (isTestFile(filePath, config.testFilesPatterns)) {
-          return;
-        }
-
-        // Check for ignored patterns
-        const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-          const regex = new RegExp(pattern);
-          return regex.test(importPath);
+        checkImport(node, node.source.value, {
+          isTypeImport: node.importKind === "type",
         });
-
-        if (isIgnored) {
-          return;
-        }
-
-        // Extract current file's layer
-        const fromLayer = extractLayerFromPath(filePath, config);
-        if (!fromLayer) {
-          return;
-        }
-
-        // Check if current file is in a business logic layer
-        const isBusinessLogicLayer = businessLogicLayers.has(fromLayer);
-        if (!isBusinessLogicLayer) {
-          return;
-        }
-
-        // Skip type-only imports if configured
-        if (allowTypeImports && node.importKind === "type") {
-          return;
-        }
-
-        // Check if import is from a UI layer
-        const isUiImport = uiLayers.some((layer) =>
-          importPath.includes(`/${layer}/`),
-        );
-        if (isUiImport) {
-          context.report({
-            node,
-            messageId: "noUiInBusinessLogic",
+      },
+      CallExpression(node) {
+        if (node.callee.type === "Import") {
+          checkImport(node, node.arguments[0]?.value, {
+            isTypeImport: false,
           });
         }
       },
-      CallExpression(node) {
-        // Handle dynamic imports
-        if (node.callee.type === "Import") {
-          const filePath = normalizePath(context.filename);
-          const importPath = node.arguments[0].value;
-
-          // Skip test files
-          if (isTestFile(filePath, config.testFilesPatterns)) {
-            return;
-          }
-
-          // Check for ignored patterns
-          const isIgnored = config.ignoreImportPatterns.some((pattern) => {
-            const regex = new RegExp(pattern);
-            return regex.test(importPath);
-          });
-
-          if (isIgnored) {
-            return;
-          }
-
-          // Extract current file's layer
-          const fromLayer = extractLayerFromPath(filePath, config);
-          if (!fromLayer) {
-            return;
-          }
-
-          // Check if current file is in a business logic layer
-          const isBusinessLogicLayer = businessLogicLayers.has(fromLayer);
-          if (!isBusinessLogicLayer) {
-            return;
-          }
-
-          // For dynamic imports, we can't check if it's a type import
-          // as that information is not available at parse time
-          // So we'll always report UI imports in dynamic imports
-
-          // Check if import is from a UI layer
-          const isUiImport = uiLayers.some((layer) =>
-            importPath.includes(`/${layer}/`),
-          );
-          if (isUiImport) {
-            context.report({
-              node,
-              messageId: "noUiInBusinessLogic",
-            });
-          }
-        }
+      ImportExpression(node) {
+        checkImport(node, node.source?.value, {
+          isTypeImport: false,
+        });
       },
     };
   },

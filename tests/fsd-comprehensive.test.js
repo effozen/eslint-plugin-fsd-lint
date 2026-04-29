@@ -803,12 +803,55 @@ describe("FSD 2.x — no-relative-imports", () => {
 });
 
 describe("FSD 2.x — no-ui-in-business-logic", () => {
+  const fsdBusinessLayers = {
+    businessLogicLayers: ["entities", "features", "widgets"],
+  };
+
   it("does not flag imports when the file's layer is outside default business-logic layers", async () => {
     const messages = await lintText(
       'import { Button } from "@shared/ui/Button";',
       "src/entities/user/model/user.ts",
       {
         "fsd/no-ui-in-business-logic": "error",
+      },
+    );
+
+    expect(messages).toEqual([]);
+  });
+
+  it("blocks ui-segment paths imported into entities model", async () => {
+    const messages = await lintText(
+      'import { Button } from "@shared/ui/Button";',
+      "src/entities/user/model/user.ts",
+      {
+        "fsd/no-ui-in-business-logic": ["error", fsdBusinessLayers],
+      },
+    );
+
+    expect(ruleIds(messages)).toEqual(["fsd/no-ui-in-business-logic"]);
+  });
+
+  it("blocks widget paths imported into a features api segment", async () => {
+    const messages = await lintText(
+      'import { Header } from "@app/widgets/Header";',
+      "src/features/auth/api/login.ts",
+      {
+        "fsd/no-ui-in-business-logic": ["error", fsdBusinessLayers],
+      },
+    );
+
+    expect(ruleIds(messages)).toEqual(["fsd/no-ui-in-business-logic"]);
+  });
+
+  it("can allow type-only UI imports inside business logic", async () => {
+    const messages = await lintText(
+      'import type { ButtonProps } from "@shared/ui/Button";',
+      "src/entities/user/model/user.ts",
+      {
+        "fsd/no-ui-in-business-logic": [
+          "error",
+          { ...fsdBusinessLayers, allowTypeImports: true },
+        ],
       },
     );
 
@@ -852,6 +895,33 @@ describe("FSD 2.x — no-ui-in-business-logic", () => {
     );
 
     expect(messages).toEqual([]);
+  });
+
+  it("flags dynamic UI imports inside business logic", async () => {
+    const messages = await lintText(
+      'const m = await import("@features/auth/ui/LoginForm");',
+      "src/entities/user/model/user.ts",
+      {
+        "fsd/no-ui-in-business-logic": ["error", fsdBusinessLayers],
+      },
+    );
+
+    expect(ruleIds(messages)).toEqual(["fsd/no-ui-in-business-logic"]);
+  });
+
+  it("does not crash when uiLayers default value is used (regression for Set/.some)", async () => {
+    const messages = await lintText(
+      'import { Header } from "@app/widgets/Header";',
+      "src/features/auth/model/session.ts",
+      {
+        "fsd/no-ui-in-business-logic": [
+          "error",
+          { businessLogicLayers: ["features"] },
+        ],
+      },
+    );
+
+    expect(ruleIds(messages)).toEqual(["fsd/no-ui-in-business-logic"]);
   });
 });
 
