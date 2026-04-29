@@ -1,247 +1,124 @@
 /**
- * @fileoverview Tests for forbidden-imports rule
+ * @fileoverview Tests for forbidden-imports rule.
+ *
+ * The rule enforces FSD layer direction: a layer can only import from layers
+ * with a higher priority (further down the stack). Same-layer imports are
+ * allowed through `allowedToImport` settings; same-slice imports are short
+ * circuited even when the consumer layer cannot import itself.
  */
 import { testRule, withFilename, withOptions } from "../utils/test-utils.js";
 import forbiddenImports from "../../src/rules/forbidden-imports.js";
 
 testRule("forbidden-imports", forbiddenImports, {
   valid: [
-    // Basic allowed imports
     {
-      description: "Import from allowed path (OK)",
-      code: 'import { Button } from "@shared/ui/Button";',
-    },
-    {
-      description: "Import from allowed feature (OK)",
-      code: 'import { LoginForm } from "@features/auth";',
-    },
-    {
-      description: "Import from allowed entity (OK)",
-      code: 'import { User } from "@entities/user";',
-    },
-
-    // Node modules and third-party imports
-    {
-      description: "Import from node modules (OK)",
-      code: 'import React from "react";',
-    },
-    {
-      description: "Import from third-party library (OK)",
-      code: 'import { useDispatch } from "react-redux";',
-    },
-    {
-      description: "Import from scoped package (OK)",
-      code: 'import { something } from "@types/react";',
-    },
-
-    // Type imports
-    {
-      description: "Type import from allowed path (OK)",
-      code: 'import type { ButtonProps } from "@shared/ui/Button";',
-    },
-    {
-      description: "Type import from node modules (OK)",
-      code: 'import type { FC } from "react";',
-    },
-
-    // Dynamic imports
-    {
-      description: "Dynamic import from allowed path (OK)",
-      code: 'const { Button } = await import("@shared/ui/Button");',
-    },
-    {
-      description: "Dynamic import from node modules (OK)",
-      code: 'const React = await import("react");',
-    },
-
-    // Test file exceptions
-    {
-      description: "Test file with forbidden import (exception)",
+      description: "shared-layer file does not classify external packages",
       ...withFilename(
-        'import { forbiddenUtil } from "@forbidden/utils";',
-        "src/features/auth/ui/LoginForm.test.tsx",
+        'import React from "react";',
+        "/src/shared/ui/Button.tsx",
       ),
     },
     {
-      description: "Test file in testing directory (exception)",
+      description: "feature can import lower entities layer",
       ...withFilename(
-        'import { forbiddenUtil } from "@forbidden/utils";',
-        "src/features/auth/testing/service.spec.ts",
+        'import { user } from "@entities/user";',
+        "/src/features/auth/model/session.ts",
       ),
     },
-
-    // Custom configurations
     {
-      description: "Import with custom allowed paths",
-      ...withOptions('import { something } from "@custom/path";', {
-        allowedPaths: ["@custom/path"],
-      }),
+      description: "feature can import lower shared layer",
+      ...withFilename(
+        'import { Button } from "@shared/ui/Button";',
+        "/src/features/auth/ui/LoginForm.tsx",
+      ),
     },
     {
-      description: "Import with custom ignored patterns",
-      ...withOptions('import { something } from "@forbidden/utils";', {
-        ignoreImportPatterns: ["/utils"],
-      }),
+      description: "page can import widgets and features",
+      ...withFilename(
+        `import { Header } from "@widgets/header";
+         import { auth } from "@features/auth";`,
+        "/src/pages/articles/ui/articles-page.tsx",
+      ),
     },
     {
-      description: "Import with custom excluded layers",
-      ...withOptions('import { something } from "@forbidden/utils";', {
-        excludeLayers: ["utils"],
-      }),
-    },
-
-    // Path variations
-    {
-      description: "Windows path format (OK)",
-      code: 'import { Button } from "@shared\\ui\\Button";',
+      description: "test files bypass layer direction checks",
+      ...withFilename(
+        'import { auth } from "@features/auth";',
+        "/src/entities/user/model/user.test.ts",
+      ),
     },
     {
-      description: "Unix path format (OK)",
-      code: 'import { Button } from "@shared/ui/Button";',
+      description: "ignoreImportPatterns skips matching imports",
+      ...withOptions(
+        withFilename(
+          'import "./LoginForm.module.css";',
+          "/src/features/auth/ui/LoginForm.tsx",
+        ),
+        { ignoreImportPatterns: ["\\.css$"] },
+      ),
     },
     {
-      description: "Mixed path separators (OK)",
-      code: 'import { Button } from "@shared/ui\\Button";',
-    },
-
-    // Real-world scenarios
-    {
-      description: "Import from hooks directory (OK)",
-      code: 'import { useAuth } from "@features/auth/hooks";',
-    },
-    {
-      description: "Import from constants directory (OK)",
-      code: 'import { API_ENDPOINTS } from "@features/auth/constants";',
-    },
-    {
-      description: "Import from utils directory (OK)",
-      code: 'import { formatUserName } from "@entities/user/utils";',
+      description: "same-slice aliased imports are allowed for pages",
+      ...withOptions(
+        withFilename(
+          'import { ArticlesLayout } from "@/pages/articles/ui/articles-page";',
+          "/apps/web/src/pages/articles/ui/articles-pending-page.tsx",
+        ),
+        {
+          rootPath: "/apps/web/src/",
+          alias: { value: "@", withSlash: true },
+        },
+      ),
     },
   ],
 
   invalid: [
-    // Basic forbidden imports
     {
-      description: "Import from forbidden path (Forbidden)",
-      code: 'import { forbiddenUtil } from "@forbidden/utils";',
-      errors: [{ messageId: "forbiddenImport" }],
+      description: "entities cannot import features",
+      ...withFilename(
+        'import { auth } from "@features/auth";',
+        "/src/entities/user/model/user.ts",
+      ),
+      errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: "Import from forbidden feature (Forbidden)",
-      code: 'import { ForbiddenFeature } from "@features/forbidden";',
-      errors: [{ messageId: "forbiddenImport" }],
+      description: "features cannot import widgets",
+      ...withFilename(
+        'import { Header } from "@widgets/header";',
+        "/src/features/auth/model/session.ts",
+      ),
+      errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: "Import from forbidden entity (Forbidden)",
-      code: 'import { ForbiddenEntity } from "@entities/forbidden";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Forbidden node modules
-    {
-      description: "Import from forbidden node module (Forbidden)",
-      code: 'import { something } from "forbidden-package";',
-      errors: [{ messageId: "forbiddenImport" }],
+      description: "shared cannot import entities",
+      ...withFilename(
+        'import { user } from "@entities/user";',
+        "/src/shared/lib/date.ts",
+      ),
+      errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: "Import from forbidden scoped package (Forbidden)",
-      code: 'import { something } from "@forbidden/package";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Forbidden type imports
-    {
-      description: "Type import from forbidden path (Forbidden)",
-      code: 'import type { ForbiddenType } from "@forbidden/types";',
-      errors: [{ messageId: "forbiddenImport" }],
+      description: "type-only upward imports are still flagged",
+      ...withFilename(
+        'import type { AuthSession } from "@features/auth";',
+        "/src/entities/user/model/user.ts",
+      ),
+      errors: [{ messageId: "invalidImport" }],
     },
     {
-      description: "Type import from forbidden node module (Forbidden)",
-      code: 'import type { ForbiddenType } from "forbidden-package";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Forbidden dynamic imports
-    {
-      description: "Dynamic import from forbidden path (Forbidden)",
-      code: 'const { forbiddenUtil } = await import("@forbidden/utils");',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Dynamic import from forbidden node module (Forbidden)",
-      code: 'const { something } = await import("forbidden-package");',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Path variations
-    {
-      description: "Windows path format (Forbidden)",
-      code: 'import { forbiddenUtil } from "@forbidden\\utils";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Unix path format (Forbidden)",
-      code: 'import { forbiddenUtil } from "@forbidden/utils";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Mixed path separators (Forbidden)",
-      code: 'import { forbiddenUtil } from "@forbidden/utils\\util";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Real-world scenarios
-    {
-      description: "Import from forbidden hooks directory (Forbidden)",
-      code: 'import { useForbidden } from "@forbidden/hooks";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Import from forbidden constants directory (Forbidden)",
-      code: 'import { FORBIDDEN_CONSTANTS } from "@forbidden/constants";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Import from forbidden utils directory (Forbidden)",
-      code: 'import { forbiddenUtil } from "@forbidden/utils";',
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-
-    // Complex scenarios
-    {
-      description: "Multiple forbidden imports (Forbidden)",
-      code: `
-        import { forbiddenUtil } from "@forbidden/utils";
-        import { ForbiddenFeature } from "@features/forbidden";
-        import { ForbiddenEntity } from "@entities/forbidden";
-      `,
-      errors: [
-        { messageId: "forbiddenImport" },
-        { messageId: "forbiddenImport" },
-        { messageId: "forbiddenImport" },
-      ],
-    },
-    {
-      description: "Mixed imports with allowed and forbidden (Forbidden)",
-      code: `
-        import { Button } from "@shared/ui/Button";
-        import { forbiddenUtil } from "@forbidden/utils";
-        import { LoginForm } from "@features/auth";
-      `,
-      errors: [{ messageId: "forbiddenImport" }],
-    },
-    {
-      description: "Nested forbidden imports (Forbidden)",
-      code: `
-        import { forbiddenUtil } from "@forbidden/utils";
-        import { anotherForbidden } from "@forbidden/another";
-        import { thirdForbidden } from "@forbidden/third";
-      `,
-      errors: [
-        { messageId: "forbiddenImport" },
-        { messageId: "forbiddenImport" },
-        { messageId: "forbiddenImport" },
-      ],
+      description:
+        "cross-slice same-layer imports are flagged with slash alias",
+      ...withOptions(
+        withFilename(
+          'import { ProfilePage } from "@/pages/profile/ui/profile-page";',
+          "/apps/web/src/pages/articles/ui/articles-pending-page.ts",
+        ),
+        {
+          rootPath: "/apps/web/src/",
+          alias: { value: "@", withSlash: true },
+        },
+      ),
+      errors: [{ messageId: "invalidImport" }],
     },
   ],
 });

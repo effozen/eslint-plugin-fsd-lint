@@ -1,585 +1,88 @@
 /**
- * @fileoverview Tests for no-public-api-sidestep rule
+ * @fileoverview Tests for no-public-api-sidestep rule.
+ *
+ * The rule restricts deep imports past a slice's public API for the layers
+ * listed in `publicApi.enforceForLayers` (default: features, entities,
+ * widgets). Slice-level (`@features/auth`) and segment-level
+ * (`@features/auth/model`) imports are allowed by default;
+ * `allowSegmentImports: false` tightens this to slice-level only.
+ * `enforceShared` extends the check to the shared layer.
  */
 import { testRule, withFilename, withOptions } from "../utils/test-utils.js";
 import noPublicApiSidestep from "../../src/rules/no-public-api-sidestep.js";
 
 testRule("no-public-api-sidestep", noPublicApiSidestep, {
   valid: [
-    // Basic public API imports
     {
-      description: "Entity import through public API (OK)",
-      code: 'import { UserCard } from "@entities/user";',
+      description: "slice-level public API import is allowed",
+      code: 'import { auth } from "@features/auth";',
     },
     {
-      description: "Feature import through public API (OK)",
-      code: 'import { LoginForm } from "@features/auth";',
+      description: "segment-level public API import is allowed by default",
+      code: 'import { authModel } from "@features/auth/model";',
     },
     {
-      description: "Widget import through public API (OK)",
-      code: 'import { Sidebar } from "@widgets/Sidebar";',
-    },
-    {
-      description: "Page import through public API (OK)",
-      code: 'import { HomePage } from "@pages/home";',
-    },
-
-    // Relative path imports
-    {
-      description: "Relative path import within same slice (OK)",
-      code: 'import { Button } from "../Button";',
-    },
-    {
-      description: "Relative path import within same directory (OK)",
-      code: 'import { Button } from "./Button";',
-    },
-    {
-      description: "Relative path import with multiple levels (OK)",
-      code: 'import { Button } from "../../../shared/ui/Button";',
-    },
-    {
-      description: "Relative path import to parent slice (OK)",
-      code: 'import { Button } from "../../shared/ui/Button";',
-    },
-    {
-      description: "Relative path import to sibling component (OK)",
-      code: 'import { Button } from "./Button/Button";',
-    },
-
-    // Non-restricted layers
-    {
-      description: "Import from non-restricted layer (OK)",
-      code: 'import { theme } from "@shared/config/theme";',
-    },
-    {
-      description: "Import from shared UI components (OK)",
+      description: "shared imports are unrestricted by default",
       code: 'import { Button } from "@shared/ui/Button";',
     },
     {
-      description: "Import from shared utilities (OK)",
-      code: 'import { formatDate } from "@shared/lib/date";',
-    },
-    {
-      description: "Import from shared hooks (OK)",
-      code: 'import { useTheme } from "@shared/hooks/useTheme";',
-    },
-    {
-      description: "Import from shared constants (OK)",
-      code: 'import { API_URL } from "@shared/constants/api";',
-    },
-
-    // Index file imports
-    {
-      description: "Import from index.ts file (OK)",
-      code: 'import { User } from "@entities/user/index";',
-    },
-    {
-      description: "Import from index.tsx file (OK)",
-      code: 'import { LoginForm } from "@features/auth/index.tsx";',
-    },
-    {
-      description: "Import from index.js file (OK)",
-      code: 'import { Sidebar } from "@widgets/Sidebar/index.js";',
-    },
-    {
-      description: "Import from index file with extension (OK)",
-      code: 'import { User } from "@entities/user/index.ts";',
-    },
-    {
-      description: "Import from index file without extension (OK)",
-      code: 'import { User } from "@entities/user/index";',
-    },
-
-    // FSD segment imports (any segment name is allowed)
-    {
-      description: "Import from model segment (OK)",
-      code: 'import { userReducer } from "@entities/user/model";',
-    },
-    {
-      description: "Import from ui segment (OK)",
-      code: 'import { UserCard } from "@entities/user/ui";',
-    },
-    {
-      description: "Import from api segment (OK)",
-      code: 'import { fetchUser } from "@entities/user/api";',
-    },
-    {
-      description: "Import from lib segment (OK)",
-      code: 'import { formatUserName } from "@entities/user/lib";',
-    },
-    {
-      description: "Import from config segment (OK)",
-      code: 'import { userConfig } from "@entities/user/config";',
-    },
-    {
-      description: "Import from types segment (OK)",
-      code: 'import type { User } from "@entities/user/types";',
-    },
-    {
-      description: "Feature model segment import (OK)",
-      code: 'import { authReducer } from "@features/auth/model";',
-    },
-    {
-      description: "Widget ui segment import (OK)",
-      code: 'import { HeaderComponent } from "@widgets/header/ui";',
-    },
-
-    // Custom segment names (any name is allowed in FSD)
-    {
-      description: 'Import from custom segment "services" (OK)',
-      code: 'import { UserService } from "@entities/user/services";',
-    },
-    {
-      description: 'Import from custom segment "helpers" (OK)',
-      code: 'import { userHelpers } from "@entities/user/helpers";',
-    },
-    {
-      description: 'Import from custom segment "validators" (OK)',
-      code: 'import { validateUser } from "@entities/user/validators";',
-    },
-    {
-      description: 'Import from custom segment "stores" (OK)',
-      code: 'import { userStore } from "@entities/user/stores";',
-    },
-    {
-      description: 'Import from custom segment "queries" (OK)',
-      code: 'import { getUserQuery } from "@entities/user/queries";',
-    },
-    {
-      description: 'Import from custom segment "mutations" (OK)',
-      code: 'import { updateUserMutation } from "@entities/user/mutations";',
-    },
-    {
-      description: "Import from custom segment with hyphen (OK)",
-      code: 'import { UserForm } from "@entities/user/form-components";',
-    },
-    {
-      description: "Import from custom segment with underscore (OK)",
-      code: 'import { userSchema } from "@entities/user/data_schemas";',
-    },
-
-    // Test file exceptions
-    {
-      description: "Test file with direct import (exception)",
+      description: "test files bypass public API enforcement",
       ...withFilename(
-        'import { userReducer } from "@entities/user/model/slice";',
-        "src/features/auth/ui/LoginForm.test.tsx",
+        'import { authSession } from "@features/auth/model/session";',
+        "/src/pages/articles/ui/articles-page.test.tsx",
       ),
     },
     {
-      description: "Test file with multiple direct imports (exception)",
+      description: "same-slice aliased internal imports stay allowed",
       ...withFilename(
-        `import { userReducer } from "@entities/user/model/slice";
-         import { authService } from "@features/auth/model/service";`,
-        "src/features/auth/ui/LoginForm.spec.ts",
+        'import { authSession } from "@features/auth/model/session";',
+        "/src/features/auth/ui/LoginForm.tsx",
       ),
     },
     {
-      description: "Test file in testing directory (exception)",
-      ...withFilename(
-        'import { userReducer } from "@entities/user/model/slice";',
-        "src/features/auth/testing/service.spec.ts",
-      ),
-    },
-    {
-      description: "Test file with dynamic import (exception)",
-      ...withFilename(
-        'const { userReducer } = await import("@entities/user/model/slice");',
-        "src/features/auth/ui/LoginForm.test.tsx",
-      ),
-    },
-    {
-      description: "Test file with type import (exception)",
-      ...withFilename(
-        'import type { UserState } from "@entities/user/model/types";',
-        "src/features/auth/ui/LoginForm.test.tsx",
-      ),
-    },
-
-    // Custom configurations
-    {
-      description: "Custom public API files",
-      ...withOptions('import { userModel } from "@entities/user/public.ts";', {
-        publicApiFiles: ["public.ts", "api.ts"],
-      }),
-    },
-    {
-      description: "Custom restricted layers",
-      ...withOptions(
-        'import { userReducer } from "@entities/user/model/slice";',
-        {
-          layers: ["features", "widgets"], // entities not restricted
-        },
-      ),
-    },
-    {
-      description: "Ignored import patterns",
-      ...withOptions(
-        'import { userTypes } from "@entities/user/model/types";',
-        {
-          ignoreImportPatterns: ["/model/types"],
-        },
-      ),
-    },
-    {
-      description: "Custom layer definitions",
-      ...withOptions('import { userService } from "@entities/user/service";', {
-        layers: {
-          entities: ["model", "ui"],
-          features: ["model", "ui", "api"],
-          widgets: ["model", "ui"],
-        },
-      }),
-    },
-    {
-      description: "Custom slice definitions",
-      ...withOptions('import { userService } from "@entities/user/service";', {
-        slices: {
-          entities: ["user", "profile"],
-          features: ["auth", "profile"],
-          widgets: ["header", "footer"],
-        },
-      }),
-    },
-
-    // Alias formats
-    {
-      description: "Import with @entities format (OK)",
-      code: 'import { User } from "@entities/user";',
-    },
-    {
-      description: "Import with @/entities format (OK)",
-      code: 'import { User } from "@/entities/user";',
-      options: [
-        {
-          alias: { value: "@", withSlash: true },
-        },
-      ],
-    },
-    {
-      description: "Import with custom alias format (OK)",
-      code: 'import { User } from "#entities/user";',
-      options: [
-        {
-          alias: { value: "#", withSlash: false },
-        },
-      ],
-    },
-    {
-      description: "Import with multiple aliases (OK)",
-      code: 'import { User } from "~entities/user";',
-      options: [
-        {
-          alias: { value: "~", withSlash: false },
-        },
-      ],
-    },
-
-    // Dynamic imports
-    {
-      description: "Dynamic import through public API (OK)",
-      code: 'const { User } = await import("@entities/user");',
-    },
-    {
-      description: "Dynamic import from index file (OK)",
-      code: 'const { LoginForm } = await import("@features/auth/index");',
-    },
-    {
-      description: "Dynamic import with type assertion (OK)",
-      code: 'const { User } = await import("@entities/user") as { User: typeof User };',
-    },
-    {
-      description: "Dynamic import with destructuring (OK)",
-      code: 'const { default: User } = await import("@entities/user");',
-    },
-    {
-      description: "Dynamic import with default import (OK)",
-      code: 'const User = await import("@entities/user").then(m => m.default);',
-    },
-
-    // Type imports
-    {
-      description: "Type import from public API (OK)",
-      code: 'import type { User } from "@entities/user";',
-    },
-    {
-      description: "Type import from index file (OK)",
-      code: 'import type { LoginFormProps } from "@features/auth/index";',
-    },
-    {
-      description: "Type import with allowTypeImports (OK)",
-      ...withOptions(
-        'import type { UserState } from "@entities/user/model/types";',
-        {
-          allowTypeImports: true,
-        },
-      ),
-    },
-    {
-      description: "Type import from shared (OK)",
-      code: 'import type { Theme } from "@shared/types/theme";',
-    },
-    {
-      description: "Type import from widget (OK)",
-      code: 'import type { SidebarProps } from "@widgets/Sidebar";',
-    },
-
-    // Real-world scenarios
-    {
-      description: "Import from hooks directory (OK)",
-      code: 'import { useUser } from "@entities/user/hooks";',
-    },
-    {
-      description: "Import from constants directory (OK)",
-      code: 'import { API_ENDPOINTS } from "@features/auth/constants";',
-    },
-    {
-      description: "Import from utils directory (OK)",
-      code: 'import { formatUserName } from "@entities/user/utils";',
-    },
-    {
-      description: "Import from lib directory (OK)",
-      code: 'import { formatDate } from "@shared/lib/date";',
-    },
-    {
-      description: "Import from config directory (OK)",
-      code: 'import { theme } from "@shared/config/theme";',
-    },
-    {
-      description: "Import from types directory (OK)",
-      code: 'import type { User } from "@entities/user/types";',
+      description: "external packages are not classified as sidesteps",
+      code: 'import React from "react";',
     },
   ],
 
   invalid: [
-    // Direct internal file imports (deeper than segment level)
     {
-      description: "Direct import from entity model file (Forbidden)",
-      code: 'import { userReducer } from "@entities/user/model/slice";',
+      description: "deep file import in features is flagged",
+      code: 'import { authSession } from "@features/auth/model/session";',
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: "Direct import from feature model file (Forbidden)",
-      code: 'import { authReducer } from "@features/auth/model/slice";',
+      description: "deep file import in entities is flagged",
+      code: 'import { fetchUser } from "@entities/user/api/userApi";',
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: "Direct import from widget model file (Forbidden)",
-      code: 'import { sidebarReducer } from "@widgets/Sidebar/model/slice";',
+      description:
+        "segment-level imports are flagged when allowSegmentImports is false",
+      ...withOptions('import { authModel } from "@features/auth/model";', {
+        publicApi: { allowSegmentImports: false },
+      }),
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: "Direct import from page model file (Forbidden)",
-      code: 'import { homeReducer } from "@pages/home/model/slice";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct UI imports
-    {
-      description: "Direct import from feature UI (Forbidden)",
-      code: 'import { LoginForm } from "@features/auth/ui/LoginForm";',
+      description: "shared deep imports are flagged when enforceShared is true",
+      ...withOptions('import { Button } from "@shared/ui/Button";', {
+        publicApi: { enforceShared: true },
+      }),
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: "Direct import from entity UI (Forbidden)",
-      code: 'import { UserCard } from "@entities/user/ui/UserCard";',
+      description: "dynamic deep imports are flagged",
+      code: 'const m = await import("@features/auth/model/session");',
       errors: [{ messageId: "noDirectImport" }],
     },
     {
-      description: "Direct import from widget UI (Forbidden)",
-      code: 'import { Sidebar } from "@widgets/Sidebar/ui/Sidebar";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from page UI (Forbidden)",
-      code: 'import { HomePage } from "@pages/home/ui/HomePage";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct API imports
-    {
-      description: "Direct import from entity API (Forbidden)",
-      code: 'import { fetchUserById } from "@entities/user/api/userApi";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from feature API (Forbidden)",
-      code: 'import { loginRequest } from "@features/auth/api/authApi";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from widget API (Forbidden)",
-      code: 'import { fetchSidebarData } from "@widgets/Sidebar/api/sidebarApi";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from page API (Forbidden)",
-      code: 'import { fetchHomeData } from "@pages/home/api/homeApi";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct constant imports
-    {
-      description: "Direct import from feature constants (Forbidden)",
-      code: 'import { LOGIN_FEATURE_KEY } from "@features/auth/model/consts";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct utility imports
-    {
-      description: "Direct import from feature utilities (Forbidden)",
-      code: 'import { validatePassword } from "@features/auth/lib/validators";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from entity utilities (Forbidden)",
-      code: 'import { formatUserName } from "@entities/user/lib/formatters";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from widget utilities (Forbidden)",
-      code: 'import { formatSidebarTitle } from "@widgets/Sidebar/lib/formatters";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from page utilities (Forbidden)",
-      code: 'import { formatHomeTitle } from "@pages/home/lib/formatters";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct hook imports
-    {
-      description: "Direct import from feature hooks (Forbidden)",
-      code: 'import { useAuth } from "@features/auth/hooks/useAuth";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from entity hooks (Forbidden)",
-      code: 'import { useUser } from "@entities/user/hooks/useUser";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from widget hooks (Forbidden)",
-      code: 'import { useSidebar } from "@widgets/Sidebar/hooks/useSidebar";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from page hooks (Forbidden)",
-      code: 'import { useHome } from "@pages/home/hooks/useHome";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Direct type imports (when not allowed)
-    {
-      description: "Direct type import from model (Forbidden)",
+      description: "extra layers can be added to enforceForLayers",
       ...withOptions(
-        'import type { UserState } from "@entities/user/model/types";',
-        {
-          allowTypeImports: false,
-        },
+        'import { ArticlesLayout } from "@pages/articles/ui/articles-page";',
+        { publicApi: { enforceForLayers: ["pages"] } },
       ),
       errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct type import from UI (Forbidden)",
-      ...withOptions(
-        'import type { UserCardProps } from "@entities/user/ui/UserCard";',
-        {
-          allowTypeImports: false,
-        },
-      ),
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct type import from API (Forbidden)",
-      ...withOptions(
-        'import type { UserApiResponse } from "@entities/user/api/userApi";',
-        {
-          allowTypeImports: false,
-        },
-      ),
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Dynamic imports (when not allowed)
-    {
-      description: "Dynamic import from model (Forbidden)",
-      code: 'const { userReducer } = await import("@entities/user/model/slice");',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Dynamic import from UI (Forbidden)",
-      code: 'const { LoginForm } = await import("@features/auth/ui/LoginForm");',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Dynamic import from API (Forbidden)",
-      code: 'const { fetchUserById } = await import("@entities/user/api/userApi");',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Dynamic import with type assertion (Forbidden)",
-      code: 'const { userReducer } = await import("@entities/user/model/slice") as { userReducer: typeof userReducer };',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Dynamic import with destructuring (Forbidden)",
-      code: 'const { default: userReducer } = await import("@entities/user/model/slice");',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Custom segment file access (still forbidden to access files inside segments)
-    {
-      description: "Direct import from custom segment file (Forbidden)",
-      code: 'import { UserService } from "@entities/user/services/UserService";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from custom segment subfolder (Forbidden)",
-      code: 'import { validateEmail } from "@entities/user/validators/email";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Direct import from nested custom segment (Forbidden)",
-      code: 'import { userQuery } from "@entities/user/queries/getUser.query";',
-      errors: [{ messageId: "noDirectImport" }],
-    },
-
-    // Complex scenarios
-    {
-      description: "Multiple direct imports (Forbidden)",
-      code: `
-        import { userReducer } from "@entities/user/model/slice";
-        import { LoginForm } from "@features/auth/ui/LoginForm";
-        import { fetchUserById } from "@entities/user/api/userApi";
-      `,
-      errors: [
-        { messageId: "noDirectImport" },
-        { messageId: "noDirectImport" },
-        { messageId: "noDirectImport" },
-      ],
-    },
-    {
-      description: "Mixed imports with valid and invalid (Forbidden)",
-      code: `
-        import { User } from "@entities/user";
-        import { userReducer } from "@entities/user/model/slice";
-        import { LoginForm } from "@features/auth";
-      `,
-      errors: [{ messageId: "noDirectImport" }],
-    },
-    {
-      description: "Nested imports (Forbidden)",
-      code: `
-        import { userReducer } from "@entities/user/model/slice";
-        import { authReducer } from "@features/auth/model/slice";
-        import { sidebarReducer } from "@widgets/Sidebar/model/slice";
-      `,
-      errors: [
-        { messageId: "noDirectImport" },
-        { messageId: "noDirectImport" },
-        { messageId: "noDirectImport" },
-      ],
     },
   ],
 });
