@@ -23,6 +23,7 @@
 - **크로스 플랫폼 호환성**: Windows와 Unix 기반 시스템 모두에서 원활하게 작동
 - **유연한 폴더 이름 지정**: 사용자 정의 폴더 이름 패턴(`1_app`, `2_pages` 등) 지원
 - **다양한 별칭 형식**: `@shared`와 `@/shared` 모두 지원
+- **tsconfig 경로 인식**: `tsconfig.json` / `jsconfig.json`의 `paths`와 `baseUrl`을 사용해 alias가 가리키는 실제 파일을 기준으로 레이어와 슬라이스를 판별
 - **포괄적인 테스트 커버리지**: 실제 시나리오와 엣지 케이스로 철저히 테스트됨
 
 ### 🔍 Feature-Sliced Design이란?
@@ -290,6 +291,63 @@ src/
 
 `allowedToImport`, `excludeLayers`, `publicApi.enforceForLayers`, `ordered-imports.customOrder` 같은 옵션은 여전히 표준 레이어 키(`app`, `pages`, `widgets`, `features`, `entities`, `shared`)를 사용합니다. `pattern` 값만 실제 폴더명이나 import segment로 쓰입니다.
 새 프로젝트라면 명확한 이유가 없는 한 표준 레이어 폴더명을 우선 사용하는 편이 좋습니다.
+
+### 파일시스템 기반 import 해석
+
+레이어와 슬라이스는 더 이상 import 문자열이 아니라 실제 해석된 파일 경로를 기준으로 판단합니다. 각 규칙은 다음 순서로 import를 해석합니다.
+
+1. `tsconfig.json` / `jsconfig.json`의 `paths` (가장 긴 패턴이 우선, 다중 타겟은 디스크에 존재하는 첫 번째 파일을 선택)
+2. `tsconfig.json`의 `baseUrl`
+3. 설정된 FSD `alias`와 `rootPath` 조합
+4. 현재 파일 기준 상대 경로
+5. 실제 파일을 찾지 못했을 때의 legacy 문자열 파싱 (예: 번들러에만 alias가 정의된 경우)
+
+이 변경 덕분에 alias로 작성한 같은 슬라이스 import가 더 이상 cross-slice로 잘못 보고되지 않습니다. 예를 들어 `tsconfig.json`이 `@articles/*`를 `src/pages/articles/*`로 매핑하고 있다면, 아래 코드는 이제 정상으로 통과합니다.
+
+```ts
+// src/pages/articles/ui/articles-pending-page.tsx
+import { articleSections } from "@articles/api/queries";
+import { ArticlesLayout } from "@articles/ui/articles-page";
+```
+
+기본적으로는 린트 대상 파일에서 위로 올라가며 가장 가까운 `tsconfig.json` / `jsconfig.json`을 자동으로 찾습니다. 원하는 설정 파일이 다른 경로에 있다면 각 규칙에 `tsconfigPath`로 지정할 수 있습니다.
+
+```js
+import fsdPlugin from "eslint-plugin-fsd-lint";
+
+export default [
+  {
+    plugins: {
+      fsd: fsdPlugin,
+    },
+    rules: {
+      "fsd/forbidden-imports": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+      "fsd/no-cross-slice-dependency": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+    },
+  },
+];
+```
+
+타겟 파일을 찾지 못하면 자동으로 legacy 문자열 파싱으로 폴백되므로, 번들러에만 alias가 정의된 프로젝트는 기존과 동일하게 동작합니다.
 
 ### 🛠️ 고급 구성
 
