@@ -43,6 +43,44 @@ describe("rootPath support", () => {
     expect(messages[0].ruleId).toBe("fsd/forbidden-imports");
   });
 
+  it("allows same-slice aliased imports for forbidden-imports", async () => {
+    const messages = await lintText(
+      "fsd/forbidden-imports",
+      {
+        rootPath: "/apps/web/src/",
+        alias: {
+          value: "@",
+          withSlash: true,
+        },
+      },
+      `
+        import { articleSections } from "@/pages/articles/api/queries";
+        import { ArticlesLayout } from "@/pages/articles/ui/articles-page";
+      `,
+      "apps/web/src/pages/articles/ui/articles-pending-page.ts",
+    );
+
+    expect(messages).toHaveLength(0);
+  });
+
+  it("still flags cross-slice same-layer aliased imports for forbidden-imports", async () => {
+    const messages = await lintText(
+      "fsd/forbidden-imports",
+      {
+        rootPath: "/apps/web/src/",
+        alias: {
+          value: "@",
+          withSlash: true,
+        },
+      },
+      'import { ProfilePage } from "@/pages/profile/ui/profile-page";',
+      "apps/web/src/pages/articles/ui/articles-pending-page.ts",
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].ruleId).toBe("fsd/forbidden-imports");
+  });
+
   it("keeps same-slice imports valid for no-cross-slice-dependency", async () => {
     const messages = await lintText(
       "fsd/no-cross-slice-dependency",

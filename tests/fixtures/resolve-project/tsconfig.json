@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@articles/*": ["src/pages/articles/*"],
+      "@profile/*": ["src/pages/profile/*"],
+      "@page/*": ["src/pages/*/index.ts"],
+      "@multi/*": ["src/missing/*", "src/pages/*"],
+      "@auth": ["src/features/auth/index.ts"],
+      "@auth/*": ["src/features/auth/*"],
+      "@entities/*": ["src/entities/*"],
+      "@user": ["src/entities/user/index.ts"],
+      "@user/*": ["src/entities/user/*"],
+      "@ui-button": ["src/shared/ui/button/index.ts"],
+      "@song": ["src/entities/song/index.ts"],
+      "@song/*": ["src/entities/song/*"],
+      "@song-for-artist": ["src/entities/song/@x/artist.ts"],
+      "@song-for-playlist": ["src/entities/song/@x/playlist.ts"]
+    }
+  }
+}
