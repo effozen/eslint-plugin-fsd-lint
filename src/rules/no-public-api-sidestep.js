@@ -4,7 +4,12 @@
 
 import { mergeConfig } from "../utils/config-utils.js";
 import {
-  extractLayerFromImportPath,
+  extractLayerFromPath,
+  extractSliceFromPath,
+  findLayerBySegment,
+  getEntityCrossImportPublicApiInfo,
+  getImportTargetInfo,
+  getRelativePathFromRoot,
   getImportPathWithoutAlias,
   isRelativePath,
   isTestFile,
@@ -69,6 +74,7 @@ export default {
             ],
           },
           rootPath: { type: "string" },
+          tsconfigPath: { type: "string" },
           folderPattern: {
             type: "object",
             properties: {
@@ -232,11 +238,69 @@ export default {
         return false;
       }
 
+      if (findLayerBySegment(segments[0], config) !== importLayer) {
+        return false;
+      }
+
       if (importLayer === "shared") {
         return isAllowedSharedPublicApiImport(segments);
       }
 
       return isAllowedSlicePublicApiImport(segments);
+    }
+
+    function isAllowedResolvedPublicApiImport(resolvedPath, importLayer) {
+      const relativePath = getRelativePathFromRoot(
+        resolvedPath,
+        config.rootPath,
+      );
+      if (!relativePath) {
+        return false;
+      }
+
+      const segments = relativePath.split("/").filter(Boolean);
+      if (segments.length === 0) {
+        return false;
+      }
+
+      if (importLayer === "shared") {
+        if (segments.length === 2 && isPublicApiFileName(segments[1])) {
+          return true;
+        }
+
+        return (
+          allowSegmentImports &&
+          segments.length >= 3 &&
+          isPublicApiFileName(segments[segments.length - 1])
+        );
+      }
+
+      if (segments.length === 3 && isPublicApiFileName(segments[2])) {
+        return true;
+      }
+
+      return (
+        allowSegmentImports &&
+        segments.length === 4 &&
+        isPublicApiFileName(segments[3])
+      );
+    }
+
+    function isAllowedEntityCrossImport(importPath, filePath, importLayer) {
+      const crossImportInfo = getEntityCrossImportPublicApiInfo(
+        importPath,
+        filePath,
+        config,
+      );
+
+      if (!crossImportInfo || importLayer !== "entities") {
+        return false;
+      }
+
+      return (
+        extractLayerFromPath(filePath, config) === "entities" &&
+        extractSliceFromPath(filePath, config) === crossImportInfo.consumerSlice
+      );
     }
 
     function checkImport(node, importPath, filePath, { isTypeImport }) {
@@ -269,15 +333,30 @@ export default {
         return;
       }
 
-      // Get layer from import path
-      const importLayer = extractLayerFromImportPath(importPath, config);
+      const target = getImportTargetInfo(importPath, filePath, config);
+      const importLayer = target.layer;
 
       // Skip if not importing from a restricted layer
       if (!importLayer || !restrictedLayers.has(importLayer)) {
         return;
       }
 
-      if (isAllowedPublicApiImport(importPath, importLayer)) {
+      const currentLayer = extractLayerFromPath(filePath, config);
+      if (currentLayer === importLayer) {
+        const currentSlice = extractSliceFromPath(filePath, config);
+        const importSlice = target.slice;
+
+        if (currentSlice && importSlice && currentSlice === importSlice) {
+          return;
+        }
+      }
+
+      if (
+        isAllowedEntityCrossImport(importPath, filePath, importLayer) ||
+        (target.resolvedPath &&
+          isAllowedResolvedPublicApiImport(target.resolvedPath, importLayer)) ||
+        isAllowedPublicApiImport(importPath, importLayer)
+      ) {
         return;
       }
 

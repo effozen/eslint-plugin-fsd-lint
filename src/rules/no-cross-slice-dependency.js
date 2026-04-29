@@ -2,14 +2,12 @@
  * @fileoverview Prevents direct dependencies between slices in the same layer. Each slice should be isolated.
  */
 
-import path from "path";
 import { mergeConfig } from "../utils/config-utils.js";
 import {
-  extractLayerFromImportPath,
   extractLayerFromPath,
-  extractSliceFromImportPath,
   extractSliceFromPath,
-  isRelativePath,
+  getEntityCrossImportPublicApiInfo,
+  getImportTargetInfo,
   isTestFile,
   normalizePath,
 } from "../utils/path-utils.js";
@@ -33,6 +31,7 @@ export default {
         type: "object",
         properties: {
           rootPath: { type: "string" },
+          tsconfigPath: { type: "string" },
           alias: {
             oneOf: [
               { type: "string" },
@@ -202,42 +201,32 @@ export default {
         return;
       }
 
-      // Handle relative paths by checking if they go outside the slice
-      if (isRelativePath(importPath)) {
-        const currentDir = path.posix.dirname(filePath);
-        const resolvedImportPath = normalizePath(
-          path.posix.join(currentDir, importPath),
-        );
-        const toLayer = extractLayerFromPath(resolvedImportPath, config);
-
-        if (toLayer !== fromLayer) {
-          return;
-        }
-
-        const toSlice = extractSliceFromPath(resolvedImportPath, config);
-
-        if (!toSlice || toSlice === fromSlice) {
-          return;
-        }
-
-        if (shouldReportSlicePair(fromLayer, fromSlice, toLayer, toSlice)) {
-          reportSliceViolation(node, fromLayer, fromSlice, toSlice);
-        }
-        return;
-      }
-
-      // For absolute imports, check if it's importing from the same layer but different slice
-      const toLayer = extractLayerFromImportPath(importPath, config);
+      const target = getImportTargetInfo(importPath, filePath, config);
+      const toLayer = target.layer;
 
       // Only check imports within the same layer
       if (toLayer !== fromLayer) {
         return;
       }
 
-      const toSlice = extractSliceFromImportPath(importPath, config);
+      const toSlice = target.slice;
 
       // Skip if slice info is missing or same slice
       if (!toSlice || toSlice === fromSlice) {
+        return;
+      }
+
+      const crossImportInfo = getEntityCrossImportPublicApiInfo(
+        importPath,
+        filePath,
+        config,
+      );
+
+      if (
+        crossImportInfo &&
+        fromLayer === "entities" &&
+        fromSlice === crossImportInfo.consumerSlice
+      ) {
         return;
       }
 

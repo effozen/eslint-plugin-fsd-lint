@@ -27,10 +27,14 @@ function createEslint(ruleOptions = {}) {
   });
 }
 
-async function lintText(code, ruleOptions) {
+async function lintText(
+  code,
+  ruleOptions,
+  filePath = "src/features/profile/model/profile.ts",
+) {
   const eslint = createEslint(ruleOptions);
   const [result] = await eslint.lintText(code, {
-    filePath: "src/features/profile/model/profile.ts",
+    filePath,
   });
 
   return result.messages;
@@ -47,6 +51,51 @@ describe("no-public-api-sidestep publicApi options", () => {
         import { userModel } from "@entities/user/model";
         import { userUi } from "@entities/user/ui";
       `,
+    );
+
+    expect(messages).toEqual([]);
+  });
+
+  it("allows same-slice aliased internal imports", async () => {
+    const messages = await lintText(
+      `
+        import { authSession } from "@features/auth/model/session";
+        import { LoginFormView } from "@features/auth/ui/LoginFormView";
+      `,
+      undefined,
+      "src/features/auth/ui/LoginForm.tsx",
+    );
+
+    expect(messages).toEqual([]);
+  });
+
+  it("keeps reporting cross-slice aliased internal imports", async () => {
+    const messages = await lintText(
+      'import { authSession } from "@features/auth/model/session";',
+      undefined,
+      "src/features/profile/ui/ProfilePage.tsx",
+    );
+
+    expect(getMessageIds(messages)).toEqual(["noDirectImport"]);
+  });
+
+  it("allows same-slice aliased internal imports when pages public APIs are enforced", async () => {
+    const messages = await lintText(
+      `
+        import { articleSections } from "@/pages/articles/api/queries";
+        import { ArticlesLayout } from "@/pages/articles/ui/articles-page";
+      `,
+      {
+        rootPath: "/apps/web/src/",
+        alias: {
+          value: "@",
+          withSlash: true,
+        },
+        publicApi: {
+          enforceForLayers: ["pages"],
+        },
+      },
+      "apps/web/src/pages/articles/ui/articles-pending-page.tsx",
     );
 
     expect(messages).toEqual([]);

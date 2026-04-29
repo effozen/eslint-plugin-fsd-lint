@@ -4,8 +4,10 @@
 
 import { mergeConfig } from "../utils/config-utils.js";
 import {
-  extractLayerFromImportPath,
   extractLayerFromPath,
+  extractSliceFromPath,
+  getEntityCrossImportPublicApiInfo,
+  getImportTargetInfo,
   isTestFile,
   normalizePath,
 } from "../utils/path-utils.js";
@@ -27,6 +29,7 @@ export default {
         type: "object",
         properties: {
           rootPath: { type: "string" },
+          tsconfigPath: { type: "string" },
           alias: {
             oneOf: [
               { type: "string" },
@@ -83,6 +86,7 @@ export default {
     // Merge user config with default config
     const options = context.options[0] || {};
     const config = mergeConfig(options);
+    const singleLayerModules = new Set(["app", "shared"]);
 
     return {
       ImportDeclaration(node) {
@@ -107,12 +111,42 @@ export default {
         // Extract current file's layer
         const fromLayer = extractLayerFromPath(filePath, config);
 
-        // Extract import path's layer
-        const toLayer = extractLayerFromImportPath(importPath, config);
+        // Extract import target info, resolving aliases to filesystem paths when possible.
+        const target = getImportTargetInfo(importPath, filePath, config);
+        const toLayer = target.layer;
 
         // Cannot determine layers (external libraries, etc.)
         if (!fromLayer || !toLayer) {
           return;
+        }
+
+        // Same-slice imports are internal implementation details, even when
+        // written through an alias such as "@/pages/articles/...".
+        if (fromLayer === toLayer) {
+          if (singleLayerModules.has(fromLayer)) {
+            return;
+          }
+
+          const fromSlice = extractSliceFromPath(filePath, config);
+          const toSlice = target.slice;
+
+          if (fromSlice && toSlice && fromSlice === toSlice) {
+            return;
+          }
+
+          const crossImportInfo = getEntityCrossImportPublicApiInfo(
+            importPath,
+            filePath,
+            config,
+          );
+
+          if (
+            crossImportInfo &&
+            fromLayer === "entities" &&
+            fromSlice === crossImportInfo.consumerSlice
+          ) {
+            return;
+          }
         }
 
         // Get layer priorities and allowed imports

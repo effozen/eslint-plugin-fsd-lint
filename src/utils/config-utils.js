@@ -13,6 +13,10 @@ export const defaultConfig = {
   // Default root path
   rootPath: "/src/",
 
+  // Optional tsconfig/jsconfig path for filesystem-based import resolution.
+  // When omitted, rules search upward from the linted file.
+  tsconfigPath: null,
+
   // Layer definitions and priorities
   layers: {
     app: {
@@ -156,11 +160,14 @@ export function mergeConfig(userConfig = {}) {
   // Merge root path
   const rootPath = userConfig.rootPath || defaultConfig.rootPath;
 
+  const tsconfigPath = userConfig.tsconfigPath || defaultConfig.tsconfigPath;
+
   // Return final configuration
   return {
     alias,
     layers,
     rootPath,
+    tsconfigPath,
     folderPattern,
     testFilesPatterns,
     publicApi,

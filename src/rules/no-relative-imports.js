@@ -30,6 +30,7 @@ export default {
         type: "object",
         properties: {
           rootPath: { type: "string" },
+          tsconfigPath: { type: "string" },
           alias: {
             oneOf: [
               { type: "string" },

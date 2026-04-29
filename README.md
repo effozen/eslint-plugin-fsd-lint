@@ -28,6 +28,7 @@ It is built for modern ESLint setups and works with:
 - JavaScript and TypeScript projects
 - Windows and Unix-style paths
 - both `@shared/...` and `@/shared/...` aliases
+- `tsconfig.json` / `jsconfig.json` `paths` and `baseUrl` mappings
 - custom folder naming like `1_app`, `2_pages`, `5_features`
 - custom source roots through `rootPath`
 
@@ -199,13 +200,14 @@ export default [
 
 Several rules support the same core options.
 
-| Option                 | Purpose                                                                                                    | Example                                                         |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `alias`                | Defines the import alias format for your project.                                                          | `{ value: '@', withSlash: false }`                              |
-| `rootPath`             | Tells the plugin where the FSD tree starts in the absolute file path. Useful for monorepos or nested apps. | `'/apps/web/src/'`                                              |
-| `folderPattern`        | Supports numbered or customized layer directory names.                                                     | `{ enabled: true, regex: '^(\\d+_)?(.*)', extractionGroup: 2 }` |
-| `testFilesPatterns`    | Allows test files to bypass specific architectural rules.                                                  | `['**/*.test.*', '**/*.spec.*']`                                |
-| `ignoreImportPatterns` | Skips selected import paths for a rule.                                                                    | `['/types$', '^virtual:']`                                      |
+| Option                 | Purpose                                                                                                                                             | Example                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `alias`                | Defines the import alias format for your project.                                                                                                   | `{ value: '@', withSlash: false }`                              |
+| `rootPath`             | Tells the plugin where the FSD tree starts in the absolute file path. Useful for monorepos or nested apps.                                          | `'/apps/web/src/'`                                              |
+| `tsconfigPath`         | Points the resolver at a specific `tsconfig.json` / `jsconfig.json`. Optional — when omitted, the plugin walks up from the linted file to find one. | `'./tsconfig.json'`                                             |
+| `folderPattern`        | Supports numbered or customized layer directory names.                                                                                              | `{ enabled: true, regex: '^(\\d+_)?(.*)', extractionGroup: 2 }` |
+| `testFilesPatterns`    | Allows test files to bypass specific architectural rules.                                                                                           | `['**/*.test.*', '**/*.spec.*']`                                |
+| `ignoreImportPatterns` | Skips selected import paths for a rule.                                                                                                             | `['/types$', '^virtual:']`                                      |
 
 ### `rootPath` Example
 
@@ -242,6 +244,63 @@ Typical `rootPath` values:
 - `'/src/root/'`
 
 The value should match a stable segment inside the absolute path ESLint sees for your files.
+
+### Filesystem-aware Import Resolution
+
+Layer and slice information is now derived from the resolved file path, not from the literal text of an import. Each rule resolves an import in this order:
+
+1. `tsconfig.json` / `jsconfig.json` `paths` (longest pattern wins, multiple targets fall through until one exists on disk)
+2. `tsconfig.json` `baseUrl`
+3. The configured FSD `alias` against `rootPath`
+4. Relative path resolution against the importing file
+5. Legacy string parsing (used when no real file can be resolved, for example when an alias is declared in a bundler config but not in `tsconfig.json`)
+
+This is what closes the same-slice false positives that previously appeared with aliased imports. For example, given a `tsconfig.json` that maps `@articles/*` to `src/pages/articles/*`, the following stays inside the `articles` slice and is no longer reported:
+
+```ts
+// src/pages/articles/ui/articles-pending-page.tsx
+import { articleSections } from "@articles/api/queries";
+import { ArticlesLayout } from "@articles/ui/articles-page";
+```
+
+By default the resolver walks upward from the linted file looking for `tsconfig.json` or `jsconfig.json`. When that is not the file you want, point each rule at an explicit one with `tsconfigPath`:
+
+```js
+import fsdPlugin from "eslint-plugin-fsd-lint";
+
+export default [
+  {
+    plugins: {
+      fsd: fsdPlugin,
+    },
+    rules: {
+      "fsd/forbidden-imports": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+      "fsd/no-cross-slice-dependency": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+      "fsd/no-public-api-sidestep": [
+        "error",
+        {
+          rootPath: "/apps/web/src/",
+          tsconfigPath: "./apps/web/tsconfig.json",
+        },
+      ],
+    },
+  },
+];
+```
+
+Resolution falls back to legacy string parsing whenever a target file cannot be located, so projects that rely on bundler-only aliases continue to work as before.
 
 ### Next.js App Router and Custom Layer Folder Names
 

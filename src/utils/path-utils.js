@@ -2,8 +2,25 @@
  * @fileoverview Path processing utility functions
  */
 
+import fs from "fs";
+import path from "path";
+
 // Path cache
 const pathCache = new Map();
+const tsConfigCache = new Map();
+const importResolveCache = new Map();
+
+const DEFAULT_RESOLVE_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mts",
+  ".cts",
+  ".mjs",
+  ".cjs",
+  ".json",
+];
 
 /**
  * Normalize file path (compatible with all operating systems)
@@ -55,6 +72,16 @@ export function isRelativePath(filePath) {
   );
 }
 
+function toAbsolutePath(filePath) {
+  const normalizedPath = normalizePath(filePath);
+
+  if (path.isAbsolute(normalizedPath) || /^[A-Za-z]:\//.test(normalizedPath)) {
+    return normalizedPath;
+  }
+
+  return normalizePath(path.resolve(normalizedPath));
+}
+
 /**
  * Extract relative path from source root
  * @param {string} filePath - File path
@@ -68,6 +95,20 @@ export function getRelativePathFromRoot(filePath, rootPattern = "/src/") {
   if (rootIndex === -1) return null;
 
   return normalizedPath.substring(rootIndex + rootPattern.length);
+}
+
+function getSourceRootFromPath(filePath, rootPattern = "/src/") {
+  const normalizedPath = normalizePath(filePath);
+  const normalizedRootPattern = normalizePath(rootPattern);
+  const rootIndex = normalizedPath.indexOf(normalizedRootPattern);
+
+  if (rootIndex !== -1) {
+    return normalizePath(
+      normalizedPath.substring(0, rootIndex + normalizedRootPattern.length),
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -215,6 +256,374 @@ export function extractSliceFromPath(filePath, config) {
 
   // Second segment is typically the slice
   return segments[1];
+}
+
+function fileExists(filePath) {
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function directoryExists(filePath) {
+  try {
+    return fs.statSync(filePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function resolveFileCandidate(candidatePath) {
+  const normalizedCandidate = normalizePath(candidatePath);
+
+  if (fileExists(normalizedCandidate)) {
+    return normalizedCandidate;
+  }
+
+  if (!path.extname(normalizedCandidate)) {
+    for (const extension of DEFAULT_RESOLVE_EXTENSIONS) {
+      const withExtension = `${normalizedCandidate}${extension}`;
+      if (fileExists(withExtension)) {
+        return normalizePath(withExtension);
+      }
+    }
+  }
+
+  if (directoryExists(normalizedCandidate)) {
+    for (const extension of DEFAULT_RESOLVE_EXTENSIONS) {
+      const indexPath = path.join(normalizedCandidate, `index${extension}`);
+      if (fileExists(indexPath)) {
+        return normalizePath(indexPath);
+      }
+    }
+  }
+
+  for (const extension of DEFAULT_RESOLVE_EXTENSIONS) {
+    const indexPath = path.join(normalizedCandidate, `index${extension}`);
+    if (fileExists(indexPath)) {
+      return normalizePath(indexPath);
+    }
+  }
+
+  return null;
+}
+
+function stripJsonComments(json) {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < json.length; index++) {
+    const char = json[index];
+    const next = json[index + 1];
+
+    if (inString) {
+      result += char;
+
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (index < json.length && json[index] !== "\n") {
+        index++;
+      }
+      result += "\n";
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      index += 2;
+      while (
+        index < json.length &&
+        !(json[index] === "*" && json[index + 1] === "/")
+      ) {
+        index++;
+      }
+      index++;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result.replace(/,\s*([}\]])/g, "$1");
+}
+
+function parseTsConfig(tsConfigPath) {
+  const normalizedPath = normalizePath(tsConfigPath);
+
+  if (tsConfigCache.has(normalizedPath)) {
+    return tsConfigCache.get(normalizedPath);
+  }
+
+  let parsedConfig = null;
+
+  try {
+    const rawConfig = fs.readFileSync(normalizedPath, "utf8");
+    const config = JSON.parse(stripJsonComments(rawConfig));
+    const compilerOptions = config.compilerOptions || {};
+    const configDir = normalizePath(path.dirname(normalizedPath));
+    const baseUrl = compilerOptions.baseUrl
+      ? normalizePath(path.resolve(configDir, compilerOptions.baseUrl))
+      : configDir;
+
+    parsedConfig = {
+      path: normalizedPath,
+      dir: configDir,
+      baseUrl,
+      paths: compilerOptions.paths || {},
+    };
+  } catch {
+    parsedConfig = null;
+  }
+
+  tsConfigCache.set(normalizedPath, parsedConfig);
+  return parsedConfig;
+}
+
+function findNearestTsConfig(currentFilePath, config) {
+  if (config.tsconfigPath) {
+    const explicitPath = normalizePath(path.resolve(config.tsconfigPath));
+    return fileExists(explicitPath) ? explicitPath : null;
+  }
+
+  let currentDir = path.dirname(toAbsolutePath(currentFilePath));
+
+  while (currentDir && currentDir !== path.dirname(currentDir)) {
+    for (const configFileName of ["tsconfig.json", "jsconfig.json"]) {
+      const candidatePath = path.join(currentDir, configFileName);
+      if (fileExists(candidatePath)) {
+        return normalizePath(candidatePath);
+      }
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+
+  return null;
+}
+
+function matchTsConfigPathPattern(importPath, pattern) {
+  if (!pattern.includes("*")) {
+    return importPath === pattern ? "" : null;
+  }
+
+  const [prefix, suffix] = pattern.split("*");
+
+  if (!importPath.startsWith(prefix) || !importPath.endsWith(suffix)) {
+    return null;
+  }
+
+  return importPath.slice(prefix.length, importPath.length - suffix.length);
+}
+
+function resolveWithTsConfigPaths(importPath, currentFilePath, config) {
+  const tsConfigPath = findNearestTsConfig(currentFilePath, config);
+  if (!tsConfigPath) {
+    return null;
+  }
+
+  const tsConfig = parseTsConfig(tsConfigPath);
+  if (!tsConfig) {
+    return null;
+  }
+
+  const pathEntries = Object.entries(tsConfig.paths).sort(
+    ([leftPattern], [rightPattern]) =>
+      rightPattern.replace("*", "").length -
+      leftPattern.replace("*", "").length,
+  );
+
+  for (const [pattern, targets] of pathEntries) {
+    const wildcardMatch = matchTsConfigPathPattern(importPath, pattern);
+    if (wildcardMatch === null) {
+      continue;
+    }
+
+    for (const target of targets) {
+      const mappedTarget = target.includes("*")
+        ? target.replace("*", wildcardMatch)
+        : target;
+      const candidatePath = path.resolve(tsConfig.baseUrl, mappedTarget);
+      const resolvedPath = resolveFileCandidate(candidatePath);
+
+      if (resolvedPath) {
+        return resolvedPath;
+      }
+    }
+  }
+
+  const baseUrlCandidate = path.resolve(tsConfig.baseUrl, importPath);
+  return resolveFileCandidate(baseUrlCandidate);
+}
+
+function resolveWithConfiguredAlias(importPath, currentFilePath, config) {
+  const pathWithoutAlias = getImportPathWithoutAlias(importPath, config);
+
+  if (!pathWithoutAlias) {
+    return null;
+  }
+
+  const sourceRoot = getSourceRootFromPath(
+    toAbsolutePath(currentFilePath),
+    config.rootPath,
+  );
+
+  if (!sourceRoot) {
+    return null;
+  }
+
+  return resolveFileCandidate(path.join(sourceRoot, pathWithoutAlias));
+}
+
+/**
+ * Resolve an import path to a real file when possible.
+ * Falls back to null for external packages or unresolved virtual paths.
+ * @param {string} importPath - Path from import statement
+ * @param {string} currentFilePath - File that contains the import
+ * @param {Object} config - Configuration options
+ * @return {string|null} - Resolved filesystem path or null
+ */
+export function resolveImportPath(importPath, currentFilePath, config) {
+  if (typeof importPath !== "string") {
+    return null;
+  }
+
+  const cacheKey = [
+    importPath,
+    currentFilePath,
+    config.rootPath,
+    config.tsconfigPath || "",
+    config.alias?.value || "",
+    config.alias?.withSlash ? "1" : "0",
+  ].join("\0");
+
+  if (importResolveCache.has(cacheKey)) {
+    return importResolveCache.get(cacheKey);
+  }
+
+  let resolvedPath = null;
+
+  if (isRelativePath(importPath)) {
+    const currentDir = path.dirname(toAbsolutePath(currentFilePath));
+    resolvedPath = resolveFileCandidate(path.resolve(currentDir, importPath));
+  } else {
+    resolvedPath =
+      resolveWithTsConfigPaths(importPath, currentFilePath, config) ||
+      resolveWithConfiguredAlias(importPath, currentFilePath, config);
+  }
+
+  importResolveCache.set(cacheKey, resolvedPath);
+  return resolvedPath;
+}
+
+/**
+ * Get layer and slice information for an import target.
+ * Resolved filesystem paths are preferred, with legacy string parsing as fallback.
+ * @param {string} importPath - Path from import statement
+ * @param {string} currentFilePath - File that contains the import
+ * @param {Object} config - Configuration options
+ * @return {{ resolvedPath: string|null, layer: string|null, slice: string|null }}
+ */
+export function getImportTargetInfo(importPath, currentFilePath, config) {
+  const resolvedPath = resolveImportPath(importPath, currentFilePath, config);
+
+  if (resolvedPath) {
+    return {
+      resolvedPath,
+      layer: extractLayerFromPath(resolvedPath, config),
+      slice: extractSliceFromPath(resolvedPath, config),
+    };
+  }
+
+  if (isRelativePath(importPath)) {
+    const unresolvedPath = normalizePath(
+      path.resolve(path.dirname(toAbsolutePath(currentFilePath)), importPath),
+    );
+
+    return {
+      resolvedPath: null,
+      layer: extractLayerFromPath(unresolvedPath, config),
+      slice: extractSliceFromPath(unresolvedPath, config),
+    };
+  }
+
+  return {
+    resolvedPath: null,
+    layer: extractLayerFromImportPath(importPath, config),
+    slice: extractSliceFromImportPath(importPath, config),
+  };
+}
+
+function getEntityCrossImportInfoFromSegments(segments, config) {
+  if (segments.length < 4 || segments[2] !== "@x") {
+    return null;
+  }
+
+  const layer = findLayerBySegment(segments[0], config);
+  if (layer !== "entities") {
+    return null;
+  }
+
+  return {
+    layer,
+    targetSlice: segments[1],
+    consumerSlice: segments[3].replace(/\.[^.]+$/, ""),
+  };
+}
+
+/**
+ * Extract FSD Entities @x public API information from an import target.
+ * @param {string} importPath - Path from import statement
+ * @param {string} currentFilePath - File that contains the import
+ * @param {Object} config - Configuration options
+ * @return {{ layer: string, targetSlice: string, consumerSlice: string }|null}
+ */
+export function getEntityCrossImportPublicApiInfo(
+  importPath,
+  currentFilePath,
+  config,
+) {
+  const resolvedPath = resolveImportPath(importPath, currentFilePath, config);
+
+  if (resolvedPath) {
+    const relativePath = getRelativePathFromRoot(resolvedPath, config.rootPath);
+    if (relativePath) {
+      const resolvedInfo = getEntityCrossImportInfoFromSegments(
+        relativePath.split("/").filter(Boolean),
+        config,
+      );
+
+      if (resolvedInfo) {
+        return resolvedInfo;
+      }
+    }
+  }
+
+  const pathWithoutAlias = getImportPathWithoutAlias(importPath, config);
+  if (!pathWithoutAlias) {
+    return null;
+  }
+
+  return getEntityCrossImportInfoFromSegments(
+    pathWithoutAlias.split("/").filter(Boolean),
+    config,
+  );
 }
 
 /**

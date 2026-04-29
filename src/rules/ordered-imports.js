@@ -3,7 +3,7 @@
  */
 
 import { mergeConfig } from "../utils/config-utils.js";
-import { extractLayerFromImportPath } from "../utils/path-utils.js";
+import { getImportTargetInfo, normalizePath } from "../utils/path-utils.js";
 
 export default {
   meta: {
@@ -43,6 +43,7 @@ export default {
               "Custom layer order (default from top to bottom: app, processes, pages, widgets, features, entities, shared)",
           },
           rootPath: { type: "string" },
+          tsconfigPath: { type: "string" },
           layers: {
             type: "object",
             additionalProperties: {
@@ -172,7 +173,11 @@ export default {
           const combinedText = precedingText + importText;
 
           // Classify imports based on FSD layers
-          const layer = extractLayerFromImportPath(importPath, config);
+          const layer = getImportTargetInfo(
+            importPath,
+            normalizePath(context.filename),
+            config,
+          ).layer;
 
           if (layer && layerOrder.includes(layer)) {
             groupedImports[layer].push({
