@@ -626,6 +626,9 @@ export function getEntityCrossImportPublicApiInfo(
   );
 }
 
+const testPatternRegexCache = new Map();
+const testFileResultCache = new Map();
+
 /**
  * Check if file is a test file
  * @param {string} filePath - File path to check
@@ -633,11 +636,27 @@ export function getEntityCrossImportPublicApiInfo(
  * @return {boolean} - Whether it's a test file
  */
 export function isTestFile(filePath, patterns) {
-  return patterns.some((pattern) => {
-    // Support simple wildcard patterns
-    const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
+  // Hot path: every FSD rule calls this for every import of every file with
+  // the same (filePath, patterns) pair, and the wildcard-derived regexes
+  // backtrack heavily on long absolute paths. Memoize both the compiled
+  // regexes and the per-file verdict.
+  const cacheKey = filePath + " " + patterns.join(",");
+  const cached = testFileResultCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
 
-    const regex = new RegExp(regexPattern);
+  const result = patterns.some((pattern) => {
+    let regex = testPatternRegexCache.get(pattern);
+    if (!regex) {
+      // Support simple wildcard patterns
+      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
+      regex = new RegExp(regexPattern);
+      testPatternRegexCache.set(pattern, regex);
+    }
     return regex.test(filePath);
   });
+
+  testFileResultCache.set(cacheKey, result);
+  return result;
 }
