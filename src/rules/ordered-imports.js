@@ -5,6 +5,14 @@
 import { mergeConfig } from "../utils/config-utils.js";
 import { getImportTargetInfo, normalizePath } from "../utils/path-utils.js";
 
+/**
+ * Whether the leading whitespace of `text` contains a line break (\n or \r\n).
+ * @param {string} text
+ * @returns {boolean}
+ */
+const hasLeadingLineBreak = (text) =>
+  text.slice(0, text.length - text.trimStart().length).includes("\n");
+
 export default {
   meta: {
     type: "suggestion",
@@ -204,8 +212,12 @@ export default {
           if (index === 0) {
             // Remove unnecessary leading newlines for the first import block
             sortedImportText += item.text.trimStart();
-          } else {
+          } else if (hasLeadingLineBreak(item.text)) {
             sortedImportText += item.text;
+          } else {
+            // The original first import carries no leading newline; add one so
+            // it does not get glued to the previous import when moved down.
+            sortedImportText += `\n${item.text}`;
           }
         });
 
