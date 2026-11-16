@@ -44,12 +44,36 @@ import { Input } from "@shared/ui/Input";`,
 
   invalid: [
     {
+      description:
+        "moving the original first import keeps it on its own line (no blank lines)",
+      code: `import { Button } from "@shared/ui";
+import React from "react";
+
+export { Button, React };`,
+      output: `import React from "react";
+import { Button } from "@shared/ui";
+
+export { Button, React };`,
+      errors: [{ messageId: "incorrectGrouping" }],
+    },
+    {
+      description:
+        "original first import stays on its own line below a file-header comment",
+      code: `// file header
+import { Button } from "@shared/ui";
+import { auth } from "@features/auth";`,
+      output: `// file header
+import { auth } from "@features/auth";
+import { Button } from "@shared/ui";`,
+      errors: [{ messageId: "incorrectGrouping" }],
+    },
+    {
       description: "shared listed before features is reported",
       code: `import { Button } from "@shared/ui/Button";
 
 import { auth } from "@features/auth";`,
-      output:
-        'import { auth } from "@features/auth";import { Button } from "@shared/ui/Button";',
+      output: `import { auth } from "@features/auth";
+import { Button } from "@shared/ui/Button";`,
       errors: [{ messageId: "incorrectGrouping" }],
     },
     {
@@ -57,8 +81,8 @@ import { auth } from "@features/auth";`,
       code: `import { user } from "@entities/user";
 
 import { Header } from "@widgets/header";`,
-      output:
-        'import { Header } from "@widgets/header";import { user } from "@entities/user";',
+      output: `import { Header } from "@widgets/header";
+import { user } from "@entities/user";`,
       errors: [{ messageId: "incorrectGrouping" }],
     },
     {
@@ -79,8 +103,8 @@ import { user } from "@entities/user";`,
           ],
         },
       ),
-      output:
-        'import { user } from "@entities/user";import { Header } from "@widgets/header";',
+      output: `import { user } from "@entities/user";
+import { Header } from "@widgets/header";`,
       errors: [{ messageId: "incorrectGrouping" }],
     },
   ],
